@@ -25,3 +25,13 @@
 | GET | `/api/v1/parking-lots/{parkingLotId}` | — | `ParkingLotResponse` |
 | GET | `/api/v1/parking-lots/nearby` | query `latitude`, `longitude`, `at`(기준 시각, 필수), `radius`(m, 1~5000, 기본 500) | `NearbyParkingLotResponse[]` (가까운 순, 최대 10) |
 | GET | `/api/v1/parking-lots/{parkingLotId}/forecasts` | query `from`, `to` | `OccupancyForecastResponse[]` (시각 순) |
+
+## place (빠른 목적지)
+
+`SavedPlaceResponse { id, name, latitude, longitude }`
+
+| 메서드 | 경로 | 요청 | 응답 `data` |
+|---|---|---|---|
+| GET | `/api/v1/saved-places` | — | `SavedPlaceResponse[]` (저장 순) |
+| POST | `/api/v1/saved-places` | `{ name: string(≤50), latitude, longitude }` | 201 `SavedPlaceResponse` (같은 이름이면 409) |
+| DELETE | `/api/v1/saved-places/{savedPlaceId}` | — | 없음 |
