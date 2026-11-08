@@ -1,8 +1,8 @@
 package com.hmc.hmcbe.user.entity;
 
+import static com.hmc.hmcbe.global.exception.DomainPreconditions.requireText;
+
 import com.hmc.hmcbe.global.entity.BaseTimeEntity;
-import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -31,21 +31,10 @@ public class User extends BaseTimeEntity {
 	}
 
 	public static User create(String authSubject) {
-		requireText(authSubject, MAX_AUTH_SUBJECT_LENGTH, "인증 subject");
-		return new User(authSubject);
+		return new User(requireText(authSubject, MAX_AUTH_SUBJECT_LENGTH, "인증 subject"));
 	}
 
 	public void updatePushToken(String pushToken) {
-		requireText(pushToken, MAX_PUSH_TOKEN_LENGTH, "푸시 토큰");
-		this.pushToken = pushToken;
-	}
-
-	private static void requireText(String value, int maxLength, String field) {
-		if (value == null || value.isBlank()) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, field + "은(는) 비어 있을 수 없습니다");
-		}
-		if (value.length() > maxLength) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, field + "은(는) " + maxLength + "자를 넘을 수 없습니다");
-		}
+		this.pushToken = requireText(pushToken, MAX_PUSH_TOKEN_LENGTH, "푸시 토큰");
 	}
 }

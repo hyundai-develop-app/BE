@@ -66,3 +66,15 @@
   `Instant`로 넘겨 단위 테스트에서 고정하기 위해서다. 설정 파일(`application.yml`) 변경은 없다.
 - `UserWriteService.resolveUserId`는 같은 subject의 최초 요청이 동시에 들어오면 유니크 제약 위반으로 한쪽이 실패할 수 있다.
   재시도하면 성공하는 드문 경우라 지금은 별도 처리를 두지 않는다(5.4).
+
+## D8. parkinglot 도메인 세부 (2026-11-09)
+
+- 좌표 값 객체 `global.geo.GeoPoint`(위도/경도, SRID 4326)를 여러 도메인이 공유한다. 엔티티는 JTS `Point`를 저장하고
+  getter는 `GeoPoint`를 돌려준다. 엔티티 공통 검증은 `global.exception.DomainPreconditions`로 모았다.
+- 혼잡도 등급 임계값: 70% 미만 AVAILABLE(여유), 90% 미만 NORMAL, 이상 CONGESTED(혼잡). 화면 근거는 "95% → 혼잡 예상"
+  하나뿐이라 임계값은 가정이다. `CongestionLevel` 한 곳에서만 바꾸면 된다.
+- 응답 DTO의 혼잡도는 enum이 아니라 문자열(`name()`)이다. 다른 도메인(arrival)이 `parkinglot.entity`를 참조하지 않게 하기 위해서다(7.6).
+- 예측 슬롯: 기준 시각 `at`의 예측 = `(at - 30분, at]` 구간에서 가장 늦은 예측. 화면의 30분 간격 막대에 맞췄다.
+- 주변 검색: 반경 1~5000m, 최대 10개. 미터 거리는 `::geography` 캐스팅으로 계산한다.
+- 주차장 등록/예측 기록용 Write 서비스는 만들었지만 Figma에 관리자 화면이 없으므로 S4에서 공개 API로 노출하지 않는다
+  (데이터 적재 경로는 미정 — 외부 배치/관리 도구가 정해지면 연결).
