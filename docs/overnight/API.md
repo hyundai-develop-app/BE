@@ -51,3 +51,16 @@
 | PUT | `/api/v1/arrivals/{sessionId}/waypoint` | `{ parkingLotId }` | `ArrivalSessionResponse` (③ 경유지, 끝난 세션이면 409) |
 | POST | `/api/v1/arrivals/{sessionId}/complete` | — | 없음 (끝난 세션이면 409) |
 | POST | `/api/v1/arrivals/{sessionId}/cancel` | — | 없음 (끝난 세션이면 409) |
+
+## parking (P단 주차 기록, 화면 ④⑤)
+
+`ParkingRecordResponse { id, parkingLotId?, latitude, longitude, parkedAt, spotMemo?, exitedAt? }`
+`ParkingSummaryResponse { record, parkingLotName?, elapsedMinutes, freeMinutes?, remainingFreeMinutes?, quickDestinations: SavedPlaceResponse[] }`
+
+| 메서드 | 경로 | 요청 | 응답 `data` |
+|---|---|---|---|
+| POST | `/api/v1/parking-records` | `{ latitude, longitude, parkingLotId? }` | 201 `ParkingRecordResponse` (④-1, 주차 시각 = 서버 현재 시각, 이전 미출차 기록은 출차 처리) |
+| GET | `/api/v1/parking-records/active` | — | `ParkingRecordResponse` (없으면 404) |
+| GET | `/api/v1/parking-records/active/summary` | — | `ParkingSummaryResponse` (⑤ 다음 시동 요약) |
+| PUT | `/api/v1/parking-records/{recordId}/spot-memo` | `{ spotMemo: string(≤100) }` | `ParkingRecordResponse` (④-2 층·구역 저장/정정, 출차 후면 409) |
+| POST | `/api/v1/parking-records/{recordId}/exit` | — | 없음 (이미 출차면 409) |
