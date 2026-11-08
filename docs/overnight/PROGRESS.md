@@ -6,7 +6,7 @@
 - S3 도메인 구현 (도메인 경계: DECISIONS.md D4)
   - [x] S3-user (`users`)
   - [x] S3-parkinglot (`parking_lots`, `parking_lot_occupancy_forecasts`)
-  - [ ] S3-place (`saved_places`)
+  - [x] S3-place (`saved_places`)
   - [ ] S3-arrival (`arrival_sessions`)
   - [ ] S3-parking (`parking_records`)
 - S4 Controller/API
