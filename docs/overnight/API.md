@@ -35,3 +35,19 @@
 | GET | `/api/v1/saved-places` | — | `SavedPlaceResponse[]` (저장 순) |
 | POST | `/api/v1/saved-places` | `{ name: string(≤50), latitude, longitude }` | 201 `SavedPlaceResponse` (같은 이름이면 409) |
 | DELETE | `/api/v1/saved-places/{savedPlaceId}` | — | 없음 |
+
+## arrival (도착 모드, 화면 ①②③)
+
+`ArrivalSessionResponse { id, destinationName, latitude, longitude, destinationParkingLotId?, waypointParkingLotId?, expectedArrivalAt, status: ACTIVE|COMPLETED|CANCELLED }`
+`ArrivalOutlookResponse { session, destinationParkingLot: NearbyParkingLotResponse?, destinationForecasts: OccupancyForecastResponse[], betterAlternativeCount }`
+`ParkingBriefingResponse { destinationParkingLot?, recommended?, alternatives: NearbyParkingLotResponse[] }`
+
+| 메서드 | 경로 | 요청 | 응답 `data` |
+|---|---|---|---|
+| POST | `/api/v1/arrivals` | `{ destinationName(≤100), latitude, longitude, destinationParkingLotId?, expectedArrivalAt }` | 201 `ArrivalSessionResponse` (진행 중 세션은 취소됨) |
+| GET | `/api/v1/arrivals/active` | — | `ArrivalSessionResponse` (없으면 404) |
+| GET | `/api/v1/arrivals/{sessionId}/outlook` | — | `ArrivalOutlookResponse` (① 대기) |
+| GET | `/api/v1/arrivals/{sessionId}/briefing` | — | `ParkingBriefingResponse` (② 브리핑) |
+| PUT | `/api/v1/arrivals/{sessionId}/waypoint` | `{ parkingLotId }` | `ArrivalSessionResponse` (③ 경유지, 끝난 세션이면 409) |
+| POST | `/api/v1/arrivals/{sessionId}/complete` | — | 없음 (끝난 세션이면 409) |
+| POST | `/api/v1/arrivals/{sessionId}/cancel` | — | 없음 (끝난 세션이면 409) |

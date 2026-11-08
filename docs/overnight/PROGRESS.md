@@ -13,6 +13,6 @@
   - [x] S4-user
   - [x] S4-parkinglot
   - [x] S4-place
-  - [ ] S4-arrival
+  - [x] S4-arrival
   - [ ] S4-parking
 - [ ] S5 전체 check 통과 및 DONE 파일 생성
