@@ -8,7 +8,7 @@
   - [x] S3-parkinglot (`parking_lots`, `parking_lot_occupancy_forecasts`)
   - [x] S3-place (`saved_places`)
   - [x] S3-arrival (`arrival_sessions`)
-  - [ ] S3-parking (`parking_records`)
+  - [x] S3-parking (`parking_records`)
 - S4 Controller/API
   - [ ] S4-user
   - [ ] S4-parkinglot
