@@ -99,3 +99,13 @@
   인증 흐름(CLAUDE.md TBD)도 정해지지 않아 푸시 발송을 추측으로 만들지 않았다. 컬럼은 V1에 남아 있으며 연동 시 엔티티 메서드
   (`markSentToPhone`)와 `@TransactionalEventListener(AFTER_COMMIT)` 리스너를 추가하면 된다. `User.pushToken` 등록 API는 S4에서 제공한다.
 - P단 주차 시 진행 중인 도착 모드를 자동 완료하는 연동은 화면 근거가 없어 넣지 않았다. 클라이언트가 arrival 완료 API를 호출한다.
+
+## D11. 컨트롤러의 현재 사용자 해석, 보안 설정은 추가하지 않음 (2026-11-09)
+
+- `global.auth.@CurrentUserId Long userId` + `CurrentUserIdArgumentResolver`(`WebConfig`에 등록): SecurityContext의
+  `JwtAuthenticationToken` subject로 `UserWriteService.resolveUserId`를 호출한다. JWT 인증이 아니면 401 `UNAUTHORIZED`.
+  `global`이 `user` 서비스 인터페이스에 의존하지만 ArchUnit 규칙(7.6)은 서비스 인터페이스 참조를 허용한다.
+- `SecurityFilterChain`은 만들지 않았다. 인증 흐름이 CLAUDE.md TBD이고, 보안 설정 변경은 범위 밖(5.4)이다.
+  Spring Boot 기본 보안(모든 요청 인증 필요)과 OAuth2 Resource Server 자동 설정에 맡긴다. 따라서 POST/PUT/DELETE는 기본 CSRF
+  보호 대상이며, 실제 배포 전 stateless JWT용 `SecurityFilterChain`(CSRF 비활성, 세션 STATELESS)을 정해야 한다 → BLOCKERS.md 참고.
+- 컨트롤러 테스트는 `@WebMvcTest` + `jwt()`/`csrf()` post-processor(`AuthFixture`)를 쓴다.
