@@ -57,3 +57,12 @@
 - 선택: 모든 위치는 `geometry(Point, 4326)` + GiST 인덱스. 엔티티 타입은 JTS `Point`(hibernate-spatial 기본 매핑).
 - 이유: hibernate-spatial의 기본 매핑이 geometry라 `ddl-auto: validate`와 충돌이 없다. 미터 단위 거리 계산은 쿼리에서
   `::geography` 캐스팅으로 처리한다.
+
+## D7. 공통 엔티티·Clock 빈 추가 (2026-11-09)
+
+- `global.entity.BaseCreatedEntity`(id, createdAt — 컨벤션 3장에 명시된 이름)와 이를 상속한 `BaseTimeEntity`(updatedAt)를 추가했다.
+  시각은 JPA Auditing 설정을 새로 켜지 않도록 Hibernate `@CreationTimestamp`/`@UpdateTimestamp`로 채운다.
+- `global.config.ClockConfig`로 `Clock`(UTC) 빈을 등록했다. 주차 경과 시간, 세션 종료 시각 같은 규칙을 엔티티 메서드에
+  `Instant`로 넘겨 단위 테스트에서 고정하기 위해서다. 설정 파일(`application.yml`) 변경은 없다.
+- `UserWriteService.resolveUserId`는 같은 subject의 최초 요청이 동시에 들어오면 유니크 제약 위반으로 한쪽이 실패할 수 있다.
+  재시도하면 성공하는 드문 경우라 지금은 별도 처리를 두지 않는다(5.4).

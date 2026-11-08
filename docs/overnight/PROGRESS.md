@@ -4,7 +4,7 @@
 - [x] S1 ERD(DDL) → V1__init.sql, 도메인 목록 확정 후 아래 S3/S4를 도메인별로 펼칠 것
 - [x] S2 공통 응답/예외 (global)
 - S3 도메인 구현 (도메인 경계: DECISIONS.md D4)
-  - [ ] S3-user (`users`)
+  - [x] S3-user (`users`)
   - [ ] S3-parkinglot (`parking_lots`, `parking_lot_occupancy_forecasts`)
   - [ ] S3-place (`saved_places`)
   - [ ] S3-arrival (`arrival_sessions`)
