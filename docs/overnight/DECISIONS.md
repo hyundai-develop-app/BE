@@ -18,3 +18,42 @@
 - 핸들러 테스트는 `@WebMvcTest` 대신 `MockMvcBuilders.standaloneSetup` + 테스트 전용 스텁 컨트롤러를 썼다.
   아직 도메인 컨트롤러가 없고, `@WebMvcTest`는 OAuth2 Resource Server 자동 설정까지 올라와 핸들러 동작과 무관한
   보안 설정이 끼어들기 때문이다. 스텁 컨트롤러는 테스트 소스에 있으므로 ArchUnit 검사 대상(`DO_NOT_INCLUDE_TESTS`)이 아니다.
+
+## D3. Figma는 지정 노드(6:3)가 아니라 GUI 페이지(13:1700)를 근거로 삼는다 (2026-11-09)
+
+- 상황: URL의 `node-id=6-3`은 "Form factors & Display" 페이지로, IVI 디자인 키트의 폼팩터 템플릿뿐이고 서비스 화면이 없다.
+- 선택: 같은 파일의 `GUI` 페이지에 있는 서비스 흐름 ①~⑤를 `figma-spec.md`에 정리했다. `이전`(이전 시안),
+  `Foundation`, `Components`는 제외했다.
+- 이유: 6:3만으로는 데이터 항목을 하나도 도출할 수 없다. 같은 파일 안에서 실제 서비스 화면이 명확히 구분되어 있으므로 추측이 아니다.
+
+## D4. 도메인(바운디드 컨텍스트) 경계 (2026-11-09)
+
+`figma-spec.md`의 화면에서 저장이 필요한 데이터만 도메인으로 잡았다.
+
+| 도메인 패키지 | Aggregate Root (테이블) | 책임 |
+|---|---|---|
+| `user` | `User` (`users`) | 외부 Issuer JWT `sub` ↔ 내부 `Long` ID 매핑, 폰 푸시 토큰 |
+| `place` | `SavedPlace` (`saved_places`) | ⑤ 빠른 목적지(집/회사) |
+| `parkinglot` | `ParkingLot` (`parking_lots`), `OccupancyForecast` (`parking_lot_occupancy_forecasts`) | 주차장 기본 정보·요금·무료 시간, ① 시간대별 예측 만차율 |
+| `arrival` | `ArrivalSession` (`arrival_sessions`) | ①~③ 도착 모드: 목적지, 목적지 주차장, 예상 도착 시각, 선택한 경유 주차장, 상태 |
+| `parking` | `ParkingRecord` (`parking_records`) | ④⑤ P단 주차 위치(GPS), 층·구역 메모, 폰 전송, 출차 |
+
+- ② 추천 후보는 저장하지 않는다. 주차장 위치·예측으로 조회 시점에 계산할 수 있고, 저장 근거(이력 화면 등)가 없다.
+  사용자의 선택 결과만 `arrival_sessions.waypoint_parking_lot_id`로 남긴다.
+- 혼잡도 등급(여유/혼잡)은 만차율에서 계산하는 값이라 컬럼으로 두지 않는다.
+- 소요 시간/거리(18분 · 12.4km 등)는 내비 계산값이라 저장하지 않는다. `expected_arrival_at`만 클라이언트가 보낸다.
+- 로그인/회원가입은 외부 Issuer 담당(CLAUDE.md)이라 `users`는 최초 요청 시 `sub`로 생성하는 최소 테이블이다.
+
+## D5. 도메인 사이는 FK 없이 ID 컬럼 + 인덱스, 도메인 내부는 FK (2026-11-09)
+
+- 상황: CODE_CONVENTIONS 3장 서문은 "DB 참조는 FK"라고 하고, 야간 지시서는 "도메인 사이는 FK 대신 ID 컬럼 + 인덱스(7.3)"라고 한다.
+- 선택: 도메인 사이 참조(`user_id`, `parking_lot_id` 등)는 FK 없이 `BIGINT` + 인덱스. 같은 도메인 내부
+  (`parking_lot_occupancy_forecasts.parking_lot_id` → `parking_lots`)만 FK를 둔다.
+- 이유: 지시서가 이 작업의 명시 지시이고, 도메인 경계를 DB 결합으로 묶지 않는 쪽이 7.3/7.8(분리 가능성)과 맞는다.
+  컨벤션 문서 자체는 범위 밖이라 수정하지 않았다.
+
+## D6. 위치 컬럼은 `geometry(Point, 4326)` (2026-11-09)
+
+- 선택: 모든 위치는 `geometry(Point, 4326)` + GiST 인덱스. 엔티티 타입은 JTS `Point`(hibernate-spatial 기본 매핑).
+- 이유: hibernate-spatial의 기본 매핑이 geometry라 `ddl-auto: validate`와 충돌이 없다. 미터 단위 거리 계산은 쿼리에서
+  `::geography` 캐스팅으로 처리한다.
