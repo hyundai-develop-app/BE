@@ -13,3 +13,15 @@
 |---|---|---|---|
 | GET | `/api/v1/users/me` | — | `UserResponse { id, pushTokenRegistered }` |
 | PUT | `/api/v1/users/me/push-token` | `{ pushToken: string(≤512) }` | 없음 |
+
+## parkinglot (조회 전용 — 등록/예측 적재 API는 없음, DECISIONS D8)
+
+`ParkingLotResponse { id, name, latitude, longitude, indoor, entranceGuide, freeMinutes, feeUnitMinutes?, feeUnitPrice?, totalSpaces? }`
+`OccupancyForecastResponse { targetAt, occupancyRate(0~100), congestionLevel: AVAILABLE|NORMAL|CONGESTED }`
+`NearbyParkingLotResponse { parkingLot: ParkingLotResponse, distanceMeters, forecast: OccupancyForecastResponse? }`
+
+| 메서드 | 경로 | 요청 | 응답 `data` |
+|---|---|---|---|
+| GET | `/api/v1/parking-lots/{parkingLotId}` | — | `ParkingLotResponse` |
+| GET | `/api/v1/parking-lots/nearby` | query `latitude`, `longitude`, `at`(기준 시각, 필수), `radius`(m, 1~5000, 기본 500) | `NearbyParkingLotResponse[]` (가까운 순, 최대 10) |
+| GET | `/api/v1/parking-lots/{parkingLotId}/forecasts` | query `from`, `to` | `OccupancyForecastResponse[]` (시각 순) |

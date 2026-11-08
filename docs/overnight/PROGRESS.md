@@ -11,7 +11,7 @@
   - [x] S3-parking (`parking_records`)
 - S4 Controller/API
   - [x] S4-user
-  - [ ] S4-parkinglot
+  - [x] S4-parkinglot
   - [ ] S4-place
   - [ ] S4-arrival
   - [ ] S4-parking
