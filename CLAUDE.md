@@ -1,0 +1,78 @@
+# CLAUDE.md
+
+이 파일은 이 저장소에서 작업할 때 참고할 프로젝트 컨텍스트입니다.
+
+## 프로젝트 개요
+
+- **HMC-BE**: HMC 백엔드. Spring Boot 3.5.14, Java 17. 기본 패키지는 `com.hmc.hmcbe`입니다.
+- 현재는 프로젝트 뼈대(빌드·인프라 설정, 컨벤션, 에이전트 워크플로)만 있고 도메인 코드는 없습니다.
+
+## 기술 스택 (build.gradle, application.yml 기준)
+
+- Spring Boot: Web, Data JPA, Data Redis, OAuth2 Resource Server, Validation, WebSocket, Actuator
+- PostgreSQL + PostGIS (`postgis/postgis:16-3.4`) — 위치 기반 데이터를 다룰 것으로 보이는 스키마
+- Redis
+- Flyway로 스키마 관리. `spring.jpa.hibernate.ddl-auto: validate`이므로 **Hibernate가 스키마를 생성하지 않습니다** — 모든 스키마 변경은 `src/main/resources/db/migration`에 마이그레이션 파일로 작성해야 합니다. 아직 마이그레이션은 없습니다.
+- OAuth2 Resource Server(JWT) — 인증은 외부 Issuer(`OAUTH2_ISSUER_URI`)에 위임하고, 이 서비스는 토큰 검증만 수행합니다. 로그인/발급 로직은 이 저장소에 없습니다.
+- AWS S3 (파일 저장), Firebase Admin SDK (FCM 푸시로 추정), springdoc-openapi(Swagger UI: `/swagger-ui.html`, API 문서: `/api-docs`), Micrometer + Prometheus + Loki(로깅/모니터링)
+- `open-in-view: false` — 트랜잭션 밖에서 지연 로딩 불가. `docs/CODE_CONVENTIONS.md` 2.4 참고.
+
+## 로컬 실행
+
+1. `.env.example`을 `.env`로 복사하고 값을 채운다 (`DB_*`, `REDIS_*`, `OAUTH2_ISSUER_URI`, `AWS_*`, `FIREBASE_CREDENTIALS_PATH`, `LOKI_URL`).
+2. `docker compose up -d` — Postgres(PostGIS) + Redis 컨테이너 기동.
+3. `./gradlew bootRun --args='--spring.profiles.active=local'` — `build.gradle`의 `bootRun.doFirst`가 `.env`를 읽어 프로세스 환경변수로 주입한다.
+
+## 테스트
+
+- `./gradlew check` (JUnit 5, 기본 `spring.profiles.active=test`, Spotless 및 ArchUnit 포함). `local` 프로필 전용 기능의 테스트는 프로필을 명시합니다.
+- 데이터베이스가 필요한 테스트는 Testcontainers(PostgreSQL/PostGIS)를 사용하므로 Docker가 실행 중이어야 합니다. 로컬 개발용 데이터베이스나 `.env`에는 의존하지 않습니다.
+- 테스트 작성 규칙(단위/통합 경계, 네이밍, Fixture 등)은 `docs/CODE_CONVENTIONS.md` 4장 참고.
+
+## 코드 컨벤션
+
+- 네이밍, 패키지 배치, 정책 코드 위치, 테스트 규칙은 `docs/CODE_CONVENTIONS.md`에 정리되어 있습니다. 코드를 작성하기 전에 반드시 확인하세요.
+
+## 에이전트 워크플로
+
+- 도메인 구현은 관리자(Claude 또는 Codex 메인 세션) / 검증자·리뷰어(Claude `verifier`) / 작성자(Codex) 파이프라인으로 진행합니다. 각 작업은 독립 worktree/브랜치에서 수행하며, 여러 작성자를 병렬 실행하고 관리자가 검증 후 순차 통합합니다.
+- 관리자는 `scripts/pipeline.py`로 작업 등록·상태 조회·검증·통합을 수행합니다. `.work/tasks`와 `.work/results`는 관리자 공간에, `.work/role`과 `.work/task.json`은 각 작업 공간에 둡니다.
+- `.claude/hooks/role-guard.sh`는 역할별 허용 경로와 작업자의 Bash를 제한합니다. Codex 변경은 단계 종료 시 경로/HEAD/리뷰 지문 검사로 확인합니다. 운영 명령과 복구 절차는 `docs/AGENT_WORKFLOW.md`를 먼저 읽으세요.
+
+## 결정된 아키텍처
+
+### 최상위 패키지 레이아웃: 도메인별 패키지
+
+레이어(controller/service/repository)로 먼저 나누지 않고, 도메인별로 최상위 패키지를 나눕니다. 각 도메인 패키지 안에서 다시 `controller`, `service`(+`impl`), `repository`, `dto`(`request`/`response`), `entity`로 나눕니다. `docs/CODE_CONVENTIONS.md`의 모든 예시(`card/service/...`, `chat/controller/...`)가 이 구조를 전제합니다.
+
+- 예: `com.hmc.hmcbe.card`, `com.hmc.hmcbe.user`, `com.hmc.hmcbe.global`(공통 컴포넌트)
+
+### 도메인 주도 설계(DDD-lite)
+
+도메인 패키지를 바운디드 컨텍스트로 보고, DDD 전술 패턴을 실용적인 수준으로 적용합니다. 세부 규칙은 `docs/CODE_CONVENTIONS.md` 7장입니다.
+
+- Aggregate Root당 리포지토리 하나, Aggregate 사이(특히 도메인 사이)는 객체 연관 대신 ID로만 참조합니다.
+- 불변식과 상태 전이는 엔티티 안에 두고(세터 금지, 정적 팩토리), 서비스는 트랜잭션·조율만 담당합니다.
+- 값 객체(`record`/`@Embeddable`)와 도메인 이벤트(과거형 `~Event`, 커밋 후 처리는 `@TransactionalEventListener`)를 사용합니다.
+- 도메인 모델과 JPA 엔티티는 분리하지 않고 `domain/application/infrastructure` 레이어도 만들지 않습니다(재검토 조건은 7.8). 도메인 사이 호출은 상대 도메인의 서비스 인터페이스 또는 이벤트로만 합니다.
+- 의존 규칙은 `ArchitectureTest`(ArchUnit)로 검증합니다.
+
+### 환경 프로필 / 스키마 관리
+
+- Spring Profile은 `local`, `test`, `prod`를 사용합니다. 현재 설정은 `application.yml`에 있고 개발 Controller와 보안 설정은 `@Profile("local")`로 제한합니다. 프로필별 설정 값이 필요해지면 `application-{profile}.yml`에 차이만 추가합니다.
+- Flyway 마이그레이션은 단순 버전 증가(`V1__xxx.sql`, `V2__xxx.sql`, ...) 방식으로 관리합니다. **이미 적용된 마이그레이션 파일은 수정하지 않고, 항상 새 버전 파일을 추가**합니다 (수정하면 체크섬이 깨져 배포 환경에서 Flyway가 실패합니다).
+
+### 공통 API 응답 포맷
+
+참고 프로젝트(Deoham-BE)의 `global.response`/`global.exception` 포맷을 따르기로 했습니다. **아직 이 저장소에 코드는 없으므로** 첫 Controller를 만들기 전에 `global` 패키지에 아래 클래스를 먼저 구현합니다. 새 Controller는 이 포맷을 사용합니다.
+
+- `com.hmc.hmcbe.global.response.ApiResponse<T>` — `record ApiResponse<T>(boolean success, T data, ErrorBody error)`. 성공은 `ApiResponse.ok(data)`/`ApiResponse.ok()`, 실패는 `ApiResponse.fail(ErrorCode, message)`로 생성합니다.
+- `com.hmc.hmcbe.global.exception.ErrorCode` — HTTP 상태별 소수의 범용 코드(`INVALID_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`)만 정의. `docs/CODE_CONVENTIONS.md` 2.3 참고 — 클라이언트가 분기해야 하는 계약이면 코드를 추가하고, 그 외에는 메시지로 구분합니다.
+- `com.hmc.hmcbe.global.exception.BusinessException` — `ErrorCode` + 메시지를 갖는 도메인 예외.
+- `com.hmc.hmcbe.global.exception.GlobalExceptionHandler` — `@RestControllerAdvice`. `BusinessException`, Bean Validation 예외, 인증/인가 예외, 처리되지 않은 예외를 모두 `ApiResponse.fail(...)`로 변환합니다.
+
+## 아직 정해지지 않은 것 (TBD)
+
+결정되는 즉시 이 파일과 `docs/CODE_CONVENTIONS.md`를 함께 갱신해야 합니다.
+
+- 인증 흐름 세부 (Issuer 종류, JWT 클레임 구조, 소셜 로그인 여부 등) — 추후 직접 정의. `firebase-admin` 의존성이 있지만 FCM 푸시용일 수도, Firebase Auth 겸용일 수도 있어 단정하지 않음.
