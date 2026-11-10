@@ -1,7 +1,7 @@
 package com.hmc.hmcbe.global.auth;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
+import com.hmc.hmcbe.global.exception.CommonErrorCode;
 import com.hmc.hmcbe.user.service.UserWriteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;
@@ -31,7 +31,7 @@ public class CurrentUserIdArgumentResolver implements HandlerMethodArgumentResol
 			NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
 		Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 		if (!(authentication instanceof JwtAuthenticationToken jwtAuthentication)) {
-			throw new BusinessException(ErrorCode.UNAUTHORIZED, "JWT 인증이 필요합니다");
+			throw new BusinessException(CommonErrorCode.UNAUTHORIZED, "JWT 인증이 필요합니다");
 		}
 		return userWriteService.resolveUserId(jwtAuthentication.getToken().getSubject());
 	}

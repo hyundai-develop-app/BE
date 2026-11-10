@@ -5,12 +5,12 @@ import com.hmc.hmcbe.arrival.dto.response.ArrivalSessionResponse;
 import com.hmc.hmcbe.arrival.dto.response.ParkingBriefingResponse;
 import com.hmc.hmcbe.arrival.entity.ArrivalSession;
 import com.hmc.hmcbe.arrival.entity.ArrivalStatus;
+import com.hmc.hmcbe.arrival.exception.ArrivalErrorCode;
 import com.hmc.hmcbe.arrival.repository.ArrivalSessionRepository;
 import com.hmc.hmcbe.arrival.service.ArrivalReadService;
 import com.hmc.hmcbe.arrival.service.ParkingRecommendationPolicy;
 import com.hmc.hmcbe.arrival.service.ParkingRecommendationPolicy.Recommendation;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.parkinglot.dto.response.OccupancyForecastResponse;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotReadService;
 import java.time.Duration;
@@ -37,7 +37,7 @@ public class ArrivalReadServiceImpl implements ArrivalReadService {
 	public ArrivalSessionResponse getActiveSession(Long userId) {
 		return arrivalSessionRepository.findByUserIdAndStatus(userId, ArrivalStatus.ACTIVE)
 				.map(ArrivalSessionResponse::from)
-				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "진행 중인 도착 모드가 없습니다"));
+				.orElseThrow(() -> new BusinessException(ArrivalErrorCode.ACTIVE_ARRIVAL_SESSION_NOT_FOUND));
 	}
 
 	@Override
@@ -81,6 +81,6 @@ public class ArrivalReadServiceImpl implements ArrivalReadService {
 	private ArrivalSession findOwnedSessionOrThrow(Long userId, Long sessionId) {
 		return arrivalSessionRepository.findById(sessionId)
 				.filter(session -> session.isOwnedBy(userId))
-				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "도착 모드를 찾을 수 없습니다"));
+				.orElseThrow(() -> new BusinessException(ArrivalErrorCode.ARRIVAL_SESSION_NOT_FOUND));
 	}
 }

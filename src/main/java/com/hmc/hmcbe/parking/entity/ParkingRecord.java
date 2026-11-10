@@ -6,8 +6,8 @@ import static com.hmc.hmcbe.global.exception.DomainPreconditions.requireText;
 
 import com.hmc.hmcbe.global.entity.BaseTimeEntity;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.global.geo.GeoPoint;
+import com.hmc.hmcbe.parking.exception.ParkingErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -58,21 +58,21 @@ public class ParkingRecord extends BaseTimeEntity {
 	}
 
 	public static ParkingRecord record(Long userId, Long parkingLotId, GeoPoint location, Instant parkedAt) {
-		requireNonNull(userId, "사용자 ID");
-		requireNonNull(location, "주차 위치");
-		requireNonNull(parkedAt, "주차 시각");
+		requireNonNull(userId, "사용자 ID", ParkingErrorCode.INVALID_PARKING_RECORD);
+		requireNonNull(location, "주차 위치", ParkingErrorCode.INVALID_PARKING_RECORD);
+		requireNonNull(parkedAt, "주차 시각", ParkingErrorCode.INVALID_PARKING_RECORD);
 		return new ParkingRecord(userId, parkingLotId, location.toPoint(), parkedAt);
 	}
 
 	public void updateSpotMemo(String spotMemo) {
 		requireActive();
-		this.spotMemo = requireText(spotMemo, MAX_SPOT_MEMO_LENGTH, "층·구역");
+		this.spotMemo = requireText(spotMemo, MAX_SPOT_MEMO_LENGTH, "층·구역", ParkingErrorCode.INVALID_SPOT_MEMO);
 	}
 
 	public void exit(Instant exitedAt) {
 		requireActive();
-		requireNonNull(exitedAt, "출차 시각");
-		require(!exitedAt.isBefore(parkedAt), "출차 시각은 주차 시각보다 이를 수 없습니다");
+		requireNonNull(exitedAt, "출차 시각", ParkingErrorCode.INVALID_EXIT_TIME);
+		require(!exitedAt.isBefore(parkedAt), "출차 시각은 주차 시각보다 이를 수 없습니다", ParkingErrorCode.INVALID_EXIT_TIME);
 		this.exitedAt = exitedAt;
 	}
 
@@ -100,7 +100,7 @@ public class ParkingRecord extends BaseTimeEntity {
 
 	private void requireActive() {
 		if (!isActive()) {
-			throw new BusinessException(ErrorCode.CONFLICT, "이미 출차한 주차 기록입니다");
+			throw new BusinessException(ParkingErrorCode.ALREADY_EXITED);
 		}
 	}
 }

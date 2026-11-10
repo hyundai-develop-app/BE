@@ -9,13 +9,14 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.parking.dto.request.ParkRequest;
 import com.hmc.hmcbe.parking.dto.response.ParkingRecordResponse;
 import com.hmc.hmcbe.parking.entity.ParkingRecord;
+import com.hmc.hmcbe.parking.exception.ParkingErrorCode;
 import com.hmc.hmcbe.parking.fixture.ParkingRecordFixture;
 import com.hmc.hmcbe.parking.repository.ParkingRecordRepository;
 import com.hmc.hmcbe.parking.service.impl.ParkingRecordWriteServiceImpl;
+import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotReadService;
 import java.time.Clock;
 import java.time.Instant;
@@ -86,12 +87,12 @@ class ParkingRecordWriteServiceTest {
 	@Test
 	@DisplayName("없는 주차장으로 기록하면 NOT_FOUND이고 저장하지 않는다")
 	void parkWithUnknownLot() {
-		given(parkingLotReadService.getParkingLot(9L)).willThrow(new BusinessException(ErrorCode.NOT_FOUND, "없음"));
+		given(parkingLotReadService.getParkingLot(9L)).willThrow(new BusinessException(ParkingLotErrorCode.PARKING_LOT_NOT_FOUND));
 
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> parkingRecordWriteService.park(1L, new ParkRequest(37.5262, 126.929, 9L)));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.PARKING_LOT_NOT_FOUND);
 		verify(parkingRecordRepository, never()).save(any());
 	}
 
@@ -115,7 +116,7 @@ class ParkingRecordWriteServiceTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> parkingRecordWriteService.updateSpotMemo(1L, 3L, "지하 2층"));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingErrorCode.PARKING_RECORD_NOT_FOUND);
 		assertThat(record.getSpotMemo()).isNull();
 	}
 

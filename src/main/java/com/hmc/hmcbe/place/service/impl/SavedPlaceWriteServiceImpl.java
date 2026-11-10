@@ -1,11 +1,11 @@
 package com.hmc.hmcbe.place.service.impl;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.global.geo.GeoPoint;
 import com.hmc.hmcbe.place.dto.request.CreateSavedPlaceRequest;
 import com.hmc.hmcbe.place.dto.response.SavedPlaceResponse;
 import com.hmc.hmcbe.place.entity.SavedPlace;
+import com.hmc.hmcbe.place.exception.PlaceErrorCode;
 import com.hmc.hmcbe.place.repository.SavedPlaceRepository;
 import com.hmc.hmcbe.place.service.SavedPlaceWriteService;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +22,7 @@ public class SavedPlaceWriteServiceImpl implements SavedPlaceWriteService {
 	@Override
 	public SavedPlaceResponse create(Long userId, CreateSavedPlaceRequest request) {
 		if (savedPlaceRepository.existsByUserIdAndName(userId, request.name())) {
-			throw new BusinessException(ErrorCode.CONFLICT, "같은 이름의 장소가 이미 있습니다");
+			throw new BusinessException(PlaceErrorCode.DUPLICATE_PLACE_NAME);
 		}
 		SavedPlace place = SavedPlace.create(userId, request.name(),
 				new GeoPoint(request.latitude(), request.longitude()));
@@ -38,6 +38,6 @@ public class SavedPlaceWriteServiceImpl implements SavedPlaceWriteService {
 	private SavedPlace findOwnedPlaceOrThrow(Long userId, Long savedPlaceId) {
 		return savedPlaceRepository.findById(savedPlaceId)
 				.filter(place -> place.isOwnedBy(userId))
-				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "장소를 찾을 수 없습니다"));
+				.orElseThrow(() -> new BusinessException(PlaceErrorCode.SAVED_PLACE_NOT_FOUND));
 	}
 }

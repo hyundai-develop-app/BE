@@ -4,10 +4,10 @@ import com.hmc.hmcbe.arrival.dto.request.StartArrivalRequest;
 import com.hmc.hmcbe.arrival.dto.response.ArrivalSessionResponse;
 import com.hmc.hmcbe.arrival.entity.ArrivalSession;
 import com.hmc.hmcbe.arrival.entity.ArrivalStatus;
+import com.hmc.hmcbe.arrival.exception.ArrivalErrorCode;
 import com.hmc.hmcbe.arrival.repository.ArrivalSessionRepository;
 import com.hmc.hmcbe.arrival.service.ArrivalWriteService;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.global.geo.GeoPoint;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotReadService;
 import java.time.Clock;
@@ -74,6 +74,6 @@ public class ArrivalWriteServiceImpl implements ArrivalWriteService {
 	private ArrivalSession findOwnedSessionOrThrow(Long userId, Long sessionId) {
 		return arrivalSessionRepository.findById(sessionId)
 				.filter(session -> session.isOwnedBy(userId))
-				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "도착 모드를 찾을 수 없습니다"));
+				.orElseThrow(() -> new BusinessException(ArrivalErrorCode.ARRIVAL_SESSION_NOT_FOUND));
 	}
 }

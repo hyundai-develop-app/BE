@@ -14,10 +14,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.hmc.hmcbe.global.auth.AuthFixture;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.parking.dto.request.ParkRequest;
 import com.hmc.hmcbe.parking.dto.response.ParkingRecordResponse;
 import com.hmc.hmcbe.parking.dto.response.ParkingSummaryResponse;
+import com.hmc.hmcbe.parking.exception.ParkingErrorCode;
 import com.hmc.hmcbe.parking.service.ParkingRecordReadService;
 import com.hmc.hmcbe.parking.service.ParkingRecordWriteService;
 import com.hmc.hmcbe.place.dto.response.SavedPlaceResponse;
@@ -76,7 +76,7 @@ class ParkingRecordControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"parkingLotId\":7}"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4001"));
 
 		verifyNoInteractions(parkingRecordWriteService);
 	}
@@ -124,7 +124,7 @@ class ParkingRecordControllerTest {
 	@DisplayName("진행 중인 기록이 없으면 404")
 	void noActiveRecord() throws Exception {
 		given(parkingRecordReadService.getActiveRecord(USER_ID))
-				.willThrow(new BusinessException(ErrorCode.NOT_FOUND, "없음"));
+				.willThrow(new BusinessException(ParkingErrorCode.ACTIVE_PARKING_RECORD_NOT_FOUND));
 
 		mockMvc.perform(get("/api/v1/parking-records/active").with(authenticated()))
 				.andExpect(status().isNotFound());
@@ -142,7 +142,7 @@ class ParkingRecordControllerTest {
 	@Test
 	@DisplayName("이미 출차한 기록을 다시 출차하면 409")
 	void exitTwice() throws Exception {
-		willThrow(new BusinessException(ErrorCode.CONFLICT, "출차함")).given(parkingRecordWriteService).exit(USER_ID, 3L);
+		willThrow(new BusinessException(ParkingErrorCode.ALREADY_EXITED)).given(parkingRecordWriteService).exit(USER_ID, 3L);
 
 		mockMvc.perform(post("/api/v1/parking-records/3/exit").with(authenticated()))
 				.andExpect(status().isConflict());

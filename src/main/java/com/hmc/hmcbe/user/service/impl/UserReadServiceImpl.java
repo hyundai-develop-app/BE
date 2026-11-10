@@ -1,8 +1,8 @@
 package com.hmc.hmcbe.user.service.impl;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.user.dto.response.UserResponse;
+import com.hmc.hmcbe.user.exception.UserErrorCode;
 import com.hmc.hmcbe.user.repository.UserRepository;
 import com.hmc.hmcbe.user.service.UserReadService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +20,6 @@ public class UserReadServiceImpl implements UserReadService {
 	public UserResponse getUser(Long userId) {
 		return userRepository.findById(userId)
 				.map(UserResponse::from)
-				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다"));
+				.orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 	}
 }

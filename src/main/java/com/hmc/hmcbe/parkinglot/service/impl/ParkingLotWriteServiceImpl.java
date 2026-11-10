@@ -1,12 +1,12 @@
 package com.hmc.hmcbe.parkinglot.service.impl;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.global.geo.GeoPoint;
 import com.hmc.hmcbe.parkinglot.dto.request.RegisterParkingLotRequest;
 import com.hmc.hmcbe.parkinglot.entity.OccupancyForecast;
 import com.hmc.hmcbe.parkinglot.entity.ParkingFee;
 import com.hmc.hmcbe.parkinglot.entity.ParkingLot;
+import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
 import com.hmc.hmcbe.parkinglot.repository.OccupancyForecastRepository;
 import com.hmc.hmcbe.parkinglot.repository.ParkingLotRepository;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotWriteService;
@@ -39,7 +39,7 @@ public class ParkingLotWriteServiceImpl implements ParkingLotWriteService {
 	@Override
 	public void recordForecast(Long parkingLotId, Instant targetAt, int occupancyRate) {
 		if (!parkingLotRepository.existsById(parkingLotId)) {
-			throw new BusinessException(ErrorCode.NOT_FOUND, "주차장을 찾을 수 없습니다");
+			throw new BusinessException(ParkingLotErrorCode.PARKING_LOT_NOT_FOUND);
 		}
 		occupancyForecastRepository.findByParkingLotIdAndTargetAt(parkingLotId, targetAt)
 				.ifPresentOrElse(
@@ -53,7 +53,7 @@ public class ParkingLotWriteServiceImpl implements ParkingLotWriteService {
 			return null;
 		}
 		if (unitMinutes == null || unitPrice == null) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "요금 단위 시간과 단위 요금은 함께 입력해야 합니다");
+			throw new BusinessException(ParkingLotErrorCode.INVALID_FEE, "요금 단위 시간과 단위 요금은 함께 입력해야 합니다");
 		}
 		return new ParkingFee(unitMinutes, unitPrice);
 	}

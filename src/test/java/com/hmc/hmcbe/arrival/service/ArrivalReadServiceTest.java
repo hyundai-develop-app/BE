@@ -10,11 +10,11 @@ import com.hmc.hmcbe.arrival.dto.response.ArrivalOutlookResponse;
 import com.hmc.hmcbe.arrival.dto.response.ParkingBriefingResponse;
 import com.hmc.hmcbe.arrival.entity.ArrivalSession;
 import com.hmc.hmcbe.arrival.entity.ArrivalStatus;
+import com.hmc.hmcbe.arrival.exception.ArrivalErrorCode;
 import com.hmc.hmcbe.arrival.fixture.ArrivalSessionFixture;
 import com.hmc.hmcbe.arrival.repository.ArrivalSessionRepository;
 import com.hmc.hmcbe.arrival.service.impl.ArrivalReadServiceImpl;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.parkinglot.dto.response.NearbyParkingLotResponse;
 import com.hmc.hmcbe.parkinglot.dto.response.OccupancyForecastResponse;
 import com.hmc.hmcbe.parkinglot.dto.response.ParkingLotResponse;
@@ -113,7 +113,7 @@ class ArrivalReadServiceTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> arrivalReadService.getBriefing(1L, 5L));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(ArrivalErrorCode.ARRIVAL_SESSION_NOT_FOUND);
 	}
 
 	@Test
@@ -123,7 +123,7 @@ class ArrivalReadServiceTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> arrivalReadService.getActiveSession(1L));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(ArrivalErrorCode.ACTIVE_ARRIVAL_SESSION_NOT_FOUND);
 	}
 
 	private static NearbyParkingLotResponse candidate(Long id, int distance, int rate, String level) {

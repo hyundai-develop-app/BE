@@ -81,14 +81,22 @@
 
 - 주의 사례 (Deoham-BE 반례): `chat/service/ChatAccessGuard.java`와 `chat/service/ChatRoomAccessService.java`에 `requireParticipant(Card card, UUID userId)`가 순환 의존 회피를 위해 동일 로직으로 각각 존재합니다. 이건 "권장 패턴"이 아니라 반례로만 기억할 것 — 새 접근 제어 로직을 추가할 때 같은 상황이면 위 1·2번을 먼저 시도합니다.
 
-### 2.3 도메인 예외는 공통 `BusinessException` + 안정적인 `ErrorCode`로 표현한다
+### 2.3 도메인 예외는 공통 `BusinessException` + 도메인별 `ErrorCode`로 표현한다
 
-기본적으로 `ErrorCode`는 HTTP 상태별 범용 코드를 사용하고, 구체적인 실패 사유는 `BusinessException` 생성 시 메시지로 전달합니다. 단, 클라이언트가 실패 원인에 따라 동작을 달리해야 하거나 운영 지표에서 별도로 집계해야 하는 경우에는 도메인별 코드를 추가합니다. 즉, 사람이 읽는 설명만 다르면 범용 코드를 사용하고 기계가 구분해야 하는 계약이면 구체적인 코드를 사용합니다.
+에러 코드만 보고 **어느 도메인에서, 어떤 HTTP 상태로, 무슨 문제가 났는지** 알 수 있게 합니다.
 
-- 근거: `global/exception/ErrorCode.java` — `INVALID_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR` 6종만 존재 (Deoham-BE에서 그대로 포팅).
-- 근거: `global/exception/BusinessException.java` — `public BusinessException(ErrorCode errorCode, String message)` 생성자가 이 패턴을 위해 명시적으로 제공됨.
-- 근거: `global/response/ApiResponse.java`, `global/exception/GlobalExceptionHandler.java` — `@RestControllerAdvice`가 `BusinessException`을 `ApiResponse.fail(code, message)`로 변환.
-- 메시지는 표시용이며 API 계약이나 분기 조건으로 사용하지 않습니다. 메시지 파싱으로 로직을 분기하지 않고, 다국어 지원이 필요해지면 메시지 생성 위치를 재검토합니다.
+- 형식: `{DOMAIN}{HTTP 상태 3자리}{순번 1자리}`. 예: `USER4041` = user 도메인 · 404 · 1번(사용자 없음), `PARKING4091` = parking 도메인 · 409 · 1번(이미 출차).
+  - `DOMAIN`은 도메인 패키지 이름을 대문자로 쓴 것입니다(`parkinglot` → `PARKINGLOT`). 어느 도메인에도 속하지 않는 오류(요청 형식, 인증, 서버 오류 등)는 `COMMON`입니다.
+  - 순번은 같은 도메인·같은 상태 안에서 1부터 매깁니다. 한 번 배포한 코드는 의미를 바꾸거나 재사용하지 않습니다.
+- 구조
+  - `global/exception/ErrorCode` — 인터페이스(`getStatus()`, `getCode()`, `getDefaultMessage()`).
+  - `global/exception/CommonErrorCode` — `COMMON` 코드.
+  - `{domain}/exception/{Domain}ErrorCode` — 도메인별 enum. 예: `user/exception/UserErrorCode`.
+- 코드 하나는 "클라이언트나 운영자가 구분할 필요가 있는 실패 원인 하나"입니다. 같은 원인의 필드별 차이(이름이 비었음/너무 김)는 같은 코드에 메시지로 구분하고, 화면이나 처리 방식이 달라지는 원인(예: 진행 중인 기록 없음 vs 기록 없음)은 코드를 나눕니다.
+- 엔티티 불변식은 `DomainPreconditions.require*(..., XxxErrorCode.INVALID_...)`처럼 도메인 코드를 넘겨 검사합니다.
+- 다른 도메인의 `ErrorCode`를 직접 던지지 않습니다. 다른 도메인의 실패는 그 도메인 서비스가 던진 예외가 그대로 전파되게 둡니다(예: 도착 모드 시작 시 없는 주차장 → `PARKINGLOT4041`). `ArchitectureTest`가 `{domain}.exception`의 도메인 간 참조를 막습니다.
+- 형식·접두사·상태 일치·중복은 `ErrorCodeConventionTest`가 검증합니다. 전체 목록은 `docs/ERROR_CODES.md`에 둡니다.
+- 메시지는 표시용이며 API 계약이나 분기 조건으로 사용하지 않습니다. 클라이언트는 `error.code`로만 분기합니다.
 
 ### 2.4 트랜잭션 스코프 안에서만 유효한 값은 별도 record로 "탈출"시켜 비트랜잭션 계층에 넘긴다
 

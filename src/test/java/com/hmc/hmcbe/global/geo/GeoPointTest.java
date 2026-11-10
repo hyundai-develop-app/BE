@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
+import com.hmc.hmcbe.global.exception.CommonErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -35,7 +35,7 @@ class GeoPointTest {
 	void outOfRange(double latitude, double longitude) {
 		BusinessException ex = assertThrows(BusinessException.class, () -> new GeoPoint(latitude, longitude));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(CommonErrorCode.INVALID_COORDINATE);
 	}
 
 	@ParameterizedTest

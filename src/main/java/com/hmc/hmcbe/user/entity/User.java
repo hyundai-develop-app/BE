@@ -3,6 +3,7 @@ package com.hmc.hmcbe.user.entity;
 import static com.hmc.hmcbe.global.exception.DomainPreconditions.requireText;
 
 import com.hmc.hmcbe.global.entity.BaseTimeEntity;
+import com.hmc.hmcbe.user.exception.UserErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -31,10 +32,10 @@ public class User extends BaseTimeEntity {
 	}
 
 	public static User create(String authSubject) {
-		return new User(requireText(authSubject, MAX_AUTH_SUBJECT_LENGTH, "인증 subject"));
+		return new User(requireText(authSubject, MAX_AUTH_SUBJECT_LENGTH, "인증 subject", UserErrorCode.INVALID_AUTH_SUBJECT));
 	}
 
 	public void updatePushToken(String pushToken) {
-		this.pushToken = requireText(pushToken, MAX_PUSH_TOKEN_LENGTH, "푸시 토큰");
+		this.pushToken = requireText(pushToken, MAX_PUSH_TOKEN_LENGTH, "푸시 토큰", UserErrorCode.INVALID_PUSH_TOKEN);
 	}
 }

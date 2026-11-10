@@ -14,8 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.hmc.hmcbe.global.auth.AuthFixture;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.user.dto.response.UserResponse;
+import com.hmc.hmcbe.user.exception.UserErrorCode;
 import com.hmc.hmcbe.user.service.UserReadService;
 import com.hmc.hmcbe.user.service.UserWriteService;
 import org.junit.jupiter.api.BeforeEach;
@@ -84,16 +84,16 @@ class UserControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"pushToken\":\"\"}"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4001"));
 	}
 
 	@Test
 	@DisplayName("서비스가 NOT_FOUND를 던지면 404로 응답한다")
 	void notFound() throws Exception {
-		given(userReadService.getUser(USER_ID)).willThrow(new BusinessException(ErrorCode.NOT_FOUND, "없음"));
+		given(userReadService.getUser(USER_ID)).willThrow(new BusinessException(UserErrorCode.USER_NOT_FOUND));
 
 		mockMvc.perform(get("/api/v1/users/me").with(authenticated()))
 				.andExpect(status().isNotFound())
-				.andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+				.andExpect(jsonPath("$.error.code").value("USER4041"));
 	}
 }

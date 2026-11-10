@@ -10,9 +10,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.parkinglot.dto.response.NearbyParkingLotResponse;
 import com.hmc.hmcbe.parkinglot.dto.response.OccupancyForecastResponse;
+import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
 import com.hmc.hmcbe.parkinglot.fixture.ParkingLotFixture;
 import com.hmc.hmcbe.parkinglot.repository.NearbyParkingLotProjection;
 import com.hmc.hmcbe.parkinglot.repository.OccupancyForecastRepository;
@@ -77,14 +77,14 @@ class ParkingLotReadServiceTest {
 	}
 
 	@Test
-	@DisplayName("검색 반경이 1 ~ 5000m를 벗어나면 INVALID_REQUEST")
+	@DisplayName("검색 반경이 1 ~ 5000m를 벗어나면 PARKINGLOT4004")
 	void invalidRadius() {
 		assertThat(assertThrows(BusinessException.class,
 				() -> parkingLotReadService.findNearby(ParkingLotFixture.YEOUIDO, 0, AT)).getErrorCode())
-				.isEqualTo(ErrorCode.INVALID_REQUEST);
+				.isEqualTo(ParkingLotErrorCode.INVALID_SEARCH_RADIUS);
 		assertThat(assertThrows(BusinessException.class,
 				() -> parkingLotReadService.findNearby(ParkingLotFixture.YEOUIDO, 5001, AT)).getErrorCode())
-				.isEqualTo(ErrorCode.INVALID_REQUEST);
+				.isEqualTo(ParkingLotErrorCode.INVALID_SEARCH_RADIUS);
 	}
 
 	@Test
@@ -105,22 +105,22 @@ class ParkingLotReadServiceTest {
 	}
 
 	@Test
-	@DisplayName("시작 시각이 끝 시각보다 늦으면 INVALID_REQUEST")
+	@DisplayName("시작 시각이 끝 시각보다 늦으면 PARKINGLOT4005")
 	void getForecastsInvalidRange() {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> parkingLotReadService.getForecasts(1L, AT, AT.minusSeconds(1)));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_FORECAST_PERIOD);
 	}
 
 	@Test
-	@DisplayName("없는 주차장을 조회하면 NOT_FOUND")
+	@DisplayName("없는 주차장을 조회하면 PARKINGLOT4041")
 	void getUnknownParkingLot() {
 		given(parkingLotRepository.findById(9L)).willReturn(Optional.empty());
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> parkingLotReadService.getParkingLot(9L));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.PARKING_LOT_NOT_FOUND);
 	}
 
 	private static NearbyParkingLotProjection projection(Long id, double distance) {

@@ -1,10 +1,10 @@
 package com.hmc.hmcbe.parking.service.impl;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.parking.dto.response.ParkingRecordResponse;
 import com.hmc.hmcbe.parking.dto.response.ParkingSummaryResponse;
 import com.hmc.hmcbe.parking.entity.ParkingRecord;
+import com.hmc.hmcbe.parking.exception.ParkingErrorCode;
 import com.hmc.hmcbe.parking.repository.ParkingRecordRepository;
 import com.hmc.hmcbe.parking.service.ParkingRecordReadService;
 import com.hmc.hmcbe.parkinglot.dto.response.ParkingLotResponse;
@@ -50,6 +50,6 @@ public class ParkingRecordReadServiceImpl implements ParkingRecordReadService {
 
 	private ParkingRecord findActiveRecordOrThrow(Long userId) {
 		return parkingRecordRepository.findByUserIdAndExitedAtIsNull(userId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "진행 중인 주차 기록이 없습니다"));
+				.orElseThrow(() -> new BusinessException(ParkingErrorCode.ACTIVE_PARKING_RECORD_NOT_FOUND));
 	}
 }

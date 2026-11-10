@@ -6,8 +6,8 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.parking.dto.response.ParkingSummaryResponse;
+import com.hmc.hmcbe.parking.exception.ParkingErrorCode;
 import com.hmc.hmcbe.parking.fixture.ParkingRecordFixture;
 import com.hmc.hmcbe.parking.repository.ParkingRecordRepository;
 import com.hmc.hmcbe.parking.service.impl.ParkingRecordReadServiceImpl;
@@ -96,6 +96,6 @@ class ParkingRecordReadServiceTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> parkingRecordReadService.getSummary(1L));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingErrorCode.ACTIVE_PARKING_RECORD_NOT_FOUND);
 	}
 }

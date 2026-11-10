@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.global.geo.GeoPoint;
+import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -52,7 +52,7 @@ class ParkingLotTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> ParkingLot.create(name, LOCATION, false, null, 0, null, null));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_PARKING_LOT);
 	}
 
 	@Test
@@ -61,7 +61,7 @@ class ParkingLotTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> ParkingLot.create("a".repeat(101), LOCATION, false, null, 0, null, null));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_PARKING_LOT);
 	}
 
 	@Test
@@ -70,7 +70,7 @@ class ParkingLotTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> ParkingLot.create("주차장", null, false, null, 0, null, null));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_PARKING_LOT);
 	}
 
 	@Test
@@ -79,7 +79,7 @@ class ParkingLotTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> ParkingLot.create("주차장", LOCATION, false, null, -1, null, null));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_PARKING_LOT);
 	}
 
 	@ParameterizedTest
@@ -89,7 +89,7 @@ class ParkingLotTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> ParkingLot.create("주차장", LOCATION, false, null, 0, null, totalSpaces));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_PARKING_LOT);
 	}
 
 	@Test
@@ -98,7 +98,7 @@ class ParkingLotTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> ParkingLot.create("주차장", LOCATION, false, "a".repeat(256), 0, null, null));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_PARKING_LOT);
 	}
 
 	@ParameterizedTest
@@ -107,6 +107,6 @@ class ParkingLotTest {
 	void invalidFee(int unitMinutes, int unitPrice) {
 		BusinessException ex = assertThrows(BusinessException.class, () -> new ParkingFee(unitMinutes, unitPrice));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_FEE);
 	}
 }

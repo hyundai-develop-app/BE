@@ -13,9 +13,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.hmc.hmcbe.global.auth.AuthFixture;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.place.dto.request.CreateSavedPlaceRequest;
 import com.hmc.hmcbe.place.dto.response.SavedPlaceResponse;
+import com.hmc.hmcbe.place.exception.PlaceErrorCode;
 import com.hmc.hmcbe.place.service.SavedPlaceReadService;
 import com.hmc.hmcbe.place.service.SavedPlaceWriteService;
 import com.hmc.hmcbe.user.service.UserWriteService;
@@ -81,7 +81,7 @@ class SavedPlaceControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"latitude\":37.51,\"longitude\":127.05}"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4001"));
 
 		verifyNoInteractions(savedPlaceWriteService);
 	}
@@ -91,13 +91,13 @@ class SavedPlaceControllerTest {
 	void createDuplicate() throws Exception {
 		CreateSavedPlaceRequest request = new CreateSavedPlaceRequest("집", 37.51, 127.05);
 		given(savedPlaceWriteService.create(USER_ID, request))
-				.willThrow(new BusinessException(ErrorCode.CONFLICT, "중복"));
+				.willThrow(new BusinessException(PlaceErrorCode.DUPLICATE_PLACE_NAME));
 
 		mockMvc.perform(post("/api/v1/saved-places").with(authenticated())
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"name\":\"집\",\"latitude\":37.51,\"longitude\":127.05}"))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.error.code").value("CONFLICT"));
+				.andExpect(jsonPath("$.error.code").value("PLACE4091"));
 	}
 
 	@Test

@@ -1,7 +1,7 @@
 package com.hmc.hmcbe.global.geo;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
+import com.hmc.hmcbe.global.exception.CommonErrorCode;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -16,10 +16,10 @@ public record GeoPoint(double latitude, double longitude) {
 
 	public GeoPoint {
 		if (!(latitude >= -90 && latitude <= 90)) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "위도는 -90 ~ 90 사이여야 합니다");
+			throw new BusinessException(CommonErrorCode.INVALID_COORDINATE, "위도는 -90 ~ 90 사이여야 합니다");
 		}
 		if (!(longitude >= -180 && longitude <= 180)) {
-			throw new BusinessException(ErrorCode.INVALID_REQUEST, "경도는 -180 ~ 180 사이여야 합니다");
+			throw new BusinessException(CommonErrorCode.INVALID_COORDINATE, "경도는 -180 ~ 180 사이여야 합니다");
 		}
 	}
 

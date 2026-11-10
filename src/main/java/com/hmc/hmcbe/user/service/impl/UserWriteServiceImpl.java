@@ -1,8 +1,8 @@
 package com.hmc.hmcbe.user.service.impl;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.user.entity.User;
+import com.hmc.hmcbe.user.exception.UserErrorCode;
 import com.hmc.hmcbe.user.repository.UserRepository;
 import com.hmc.hmcbe.user.service.UserWriteService;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +30,6 @@ public class UserWriteServiceImpl implements UserWriteService {
 
 	private User findUserOrThrow(Long userId) {
 		return userRepository.findById(userId)
-				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "사용자를 찾을 수 없습니다"));
+				.orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
 	}
 }

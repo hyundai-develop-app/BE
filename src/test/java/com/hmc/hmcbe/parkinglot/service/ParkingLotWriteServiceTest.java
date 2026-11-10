@@ -8,11 +8,11 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.parkinglot.dto.request.RegisterParkingLotRequest;
 import com.hmc.hmcbe.parkinglot.entity.OccupancyForecast;
 import com.hmc.hmcbe.parkinglot.entity.ParkingFee;
 import com.hmc.hmcbe.parkinglot.entity.ParkingLot;
+import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
 import com.hmc.hmcbe.parkinglot.fixture.ParkingLotFixture;
 import com.hmc.hmcbe.parkinglot.repository.OccupancyForecastRepository;
 import com.hmc.hmcbe.parkinglot.repository.ParkingLotRepository;
@@ -58,12 +58,12 @@ class ParkingLotWriteServiceTest {
 	}
 
 	@Test
-	@DisplayName("요금 단위 시간과 단위 요금 중 하나만 주면 INVALID_REQUEST")
+	@DisplayName("요금 단위 시간과 단위 요금 중 하나만 주면 PARKINGLOT4002")
 	void registerWithPartialFee() {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> parkingLotWriteService.register(request(10, null)));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_FEE);
 		verify(parkingLotRepository, never()).save(any());
 	}
 
@@ -96,14 +96,14 @@ class ParkingLotWriteServiceTest {
 	}
 
 	@Test
-	@DisplayName("없는 주차장의 예측을 저장하면 NOT_FOUND")
+	@DisplayName("없는 주차장의 예측을 저장하면 PARKINGLOT4041")
 	void recordForecastOfUnknownLot() {
 		given(parkingLotRepository.existsById(9L)).willReturn(false);
 
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> parkingLotWriteService.recordForecast(9L, TARGET_AT, 90));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.PARKING_LOT_NOT_FOUND);
 	}
 
 	private static RegisterParkingLotRequest request(Integer feeUnitMinutes, Integer feeUnitPrice) {

@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
+import com.hmc.hmcbe.parking.exception.ParkingErrorCode;
 import com.hmc.hmcbe.parking.fixture.ParkingRecordFixture;
 import java.time.Duration;
 import java.time.Instant;
@@ -61,7 +61,7 @@ class ParkingRecordTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> record.updateSpotMemo(memo));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingErrorCode.INVALID_SPOT_MEMO);
 	}
 
 	@Test
@@ -91,7 +91,7 @@ class ParkingRecordTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> record.exit(PARKED_AT.minusSeconds(1)));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingErrorCode.INVALID_EXIT_TIME);
 	}
 
 	@Test
@@ -101,9 +101,9 @@ class ParkingRecordTest {
 		record.exit(PARKED_AT.plusSeconds(60));
 
 		assertThat(assertThrows(BusinessException.class, () -> record.exit(PARKED_AT.plusSeconds(120)))
-				.getErrorCode()).isEqualTo(ErrorCode.CONFLICT);
+				.getErrorCode()).isEqualTo(ParkingErrorCode.ALREADY_EXITED);
 		assertThat(assertThrows(BusinessException.class, () -> record.updateSpotMemo("지하 1층"))
-				.getErrorCode()).isEqualTo(ErrorCode.CONFLICT);
+				.getErrorCode()).isEqualTo(ParkingErrorCode.ALREADY_EXITED);
 	}
 
 	@Test

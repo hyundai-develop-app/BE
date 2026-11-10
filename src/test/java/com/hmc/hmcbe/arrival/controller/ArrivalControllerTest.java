@@ -17,11 +17,11 @@ import com.hmc.hmcbe.arrival.dto.response.ArrivalOutlookResponse;
 import com.hmc.hmcbe.arrival.dto.response.ArrivalSessionResponse;
 import com.hmc.hmcbe.arrival.dto.response.ParkingBriefingResponse;
 import com.hmc.hmcbe.arrival.entity.ArrivalStatus;
+import com.hmc.hmcbe.arrival.exception.ArrivalErrorCode;
 import com.hmc.hmcbe.arrival.service.ArrivalReadService;
 import com.hmc.hmcbe.arrival.service.ArrivalWriteService;
 import com.hmc.hmcbe.global.auth.AuthFixture;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.parkinglot.dto.response.NearbyParkingLotResponse;
 import com.hmc.hmcbe.parkinglot.dto.response.OccupancyForecastResponse;
 import com.hmc.hmcbe.parkinglot.dto.response.ParkingLotResponse;
@@ -86,7 +86,7 @@ class ArrivalControllerTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"destinationName\":\"더현대 서울\",\"latitude\":37.5,\"longitude\":126.9}"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4001"));
 
 		verifyNoInteractions(arrivalWriteService);
 	}
@@ -95,7 +95,7 @@ class ArrivalControllerTest {
 	@DisplayName("진행 중인 세션이 없으면 404")
 	void noActiveSession() throws Exception {
 		given(arrivalReadService.getActiveSession(USER_ID))
-				.willThrow(new BusinessException(ErrorCode.NOT_FOUND, "없음"));
+				.willThrow(new BusinessException(ArrivalErrorCode.ACTIVE_ARRIVAL_SESSION_NOT_FOUND));
 
 		mockMvc.perform(get("/api/v1/arrivals/active").with(authenticated()))
 				.andExpect(status().isNotFound());
@@ -165,11 +165,11 @@ class ArrivalControllerTest {
 	@Test
 	@DisplayName("이미 끝난 세션을 취소하면 409 CONFLICT")
 	void cancelEnded() throws Exception {
-		willThrow(new BusinessException(ErrorCode.CONFLICT, "끝남")).given(arrivalWriteService).cancel(USER_ID, 5L);
+		willThrow(new BusinessException(ArrivalErrorCode.ALREADY_ENDED)).given(arrivalWriteService).cancel(USER_ID, 5L);
 
 		mockMvc.perform(post("/api/v1/arrivals/5/cancel").with(authenticated()))
 				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.error.code").value("CONFLICT"));
+				.andExpect(jsonPath("$.error.code").value("ARRIVAL4091"));
 	}
 
 	private static NearbyParkingLotResponse nearby(Long id, int distance, int rate, String level) {

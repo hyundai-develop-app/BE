@@ -12,11 +12,12 @@ import com.hmc.hmcbe.arrival.dto.request.StartArrivalRequest;
 import com.hmc.hmcbe.arrival.dto.response.ArrivalSessionResponse;
 import com.hmc.hmcbe.arrival.entity.ArrivalSession;
 import com.hmc.hmcbe.arrival.entity.ArrivalStatus;
+import com.hmc.hmcbe.arrival.exception.ArrivalErrorCode;
 import com.hmc.hmcbe.arrival.fixture.ArrivalSessionFixture;
 import com.hmc.hmcbe.arrival.repository.ArrivalSessionRepository;
 import com.hmc.hmcbe.arrival.service.impl.ArrivalWriteServiceImpl;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
+import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotReadService;
 import java.time.Clock;
 import java.time.Instant;
@@ -89,11 +90,11 @@ class ArrivalWriteServiceTest {
 	@DisplayName("없는 목적지 주차장으로 시작하면 NOT_FOUND이고 세션을 저장하지 않는다")
 	void startWithUnknownLot() {
 		given(parkingLotReadService.getParkingLot(9L))
-				.willThrow(new BusinessException(ErrorCode.NOT_FOUND, "없음"));
+				.willThrow(new BusinessException(ParkingLotErrorCode.PARKING_LOT_NOT_FOUND));
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> arrivalWriteService.start(1L, request(9L)));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.PARKING_LOT_NOT_FOUND);
 		verify(arrivalSessionRepository, never()).save(any());
 	}
 
@@ -117,7 +118,7 @@ class ArrivalWriteServiceTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> arrivalWriteService.cancel(1L, 5L));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(ArrivalErrorCode.ARRIVAL_SESSION_NOT_FOUND);
 		assertThat(session.getStatus()).isEqualTo(ArrivalStatus.ACTIVE);
 	}
 

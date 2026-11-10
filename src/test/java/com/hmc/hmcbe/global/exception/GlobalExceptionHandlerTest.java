@@ -33,92 +33,92 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
-	@DisplayName("BusinessException이 발생하면 ErrorCode의 상태와 메시지로 실패 응답한다")
+	@DisplayName("BusinessException이 발생하면 ErrorCode의 상태·코드·메시지로 실패 응답한다")
 	void business() throws Exception {
 		mockMvc.perform(get("/business"))
 				.andExpect(status().isNotFound())
 				.andExpect(jsonPath("$.success").value(false))
 				.andExpect(jsonPath("$.data").doesNotExist())
-				.andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4041"));
 	}
 
 	@Test
-	@DisplayName("요청 바디 검증에 실패하면 400 INVALID_REQUEST로 응답한다")
+	@DisplayName("요청 바디 검증에 실패하면 400 COMMON4001로 응답한다")
 	void validation() throws Exception {
 		mockMvc.perform(post("/validate")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"name\":\"\"}"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4001"));
 	}
 
 	@Test
-	@DisplayName("요청 바디를 읽을 수 없으면 400 INVALID_REQUEST로 응답한다")
+	@DisplayName("요청 바디를 읽을 수 없으면 400 COMMON4001로 응답한다")
 	void malformedBody() throws Exception {
 		mockMvc.perform(post("/validate")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4001"));
 	}
 
 	@Test
-	@DisplayName("필수 요청 파라미터가 없으면 400 INVALID_REQUEST로 응답한다")
+	@DisplayName("필수 요청 파라미터가 없으면 400 COMMON4001로 응답한다")
 	void missingParam() throws Exception {
 		mockMvc.perform(get("/param"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4001"));
 	}
 
 	@Test
-	@DisplayName("요청 파라미터 타입이 맞지 않으면 400 INVALID_REQUEST로 응답한다")
+	@DisplayName("요청 파라미터 타입이 맞지 않으면 400 COMMON4001로 응답한다")
 	void typeMismatch() throws Exception {
 		mockMvc.perform(get("/param").param("id", "abc"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4001"));
 	}
 
 	@Test
-	@DisplayName("인증 예외가 발생하면 401 UNAUTHORIZED로 응답한다")
+	@DisplayName("인증 예외가 발생하면 401 COMMON4011로 응답한다")
 	void authentication() throws Exception {
 		mockMvc.perform(get("/unauthenticated"))
 				.andExpect(status().isUnauthorized())
-				.andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4011"));
 	}
 
 	@Test
-	@DisplayName("인가 예외가 발생하면 403 FORBIDDEN으로 응답한다")
+	@DisplayName("인가 예외가 발생하면 403 COMMON4031으로 응답한다")
 	void accessDenied() throws Exception {
 		mockMvc.perform(get("/forbidden"))
 				.andExpect(status().isForbidden())
-				.andExpect(jsonPath("$.error.code").value("FORBIDDEN"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4031"));
 	}
 
 	@Test
-	@DisplayName("지원하지 않는 HTTP 메서드로 요청하면 405와 INVALID_REQUEST로 응답한다")
+	@DisplayName("지원하지 않는 HTTP 메서드로 요청하면 405 COMMON4051로 응답한다")
 	void methodNotSupported() throws Exception {
 		mockMvc.perform(post("/business"))
 				.andExpect(status().isMethodNotAllowed())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4051"));
 	}
 
 	@Test
-	@DisplayName("지원하지 않는 Content-Type으로 요청하면 400 INVALID_REQUEST로 응답한다")
+	@DisplayName("지원하지 않는 Content-Type으로 요청하면 415 COMMON4151로 응답한다")
 	void mediaTypeNotSupported() throws Exception {
 		mockMvc.perform(post("/validate")
 						.contentType(MediaType.TEXT_PLAIN)
 						.content("name"))
-				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(status().isUnsupportedMediaType())
+				.andExpect(jsonPath("$.error.code").value("COMMON4151"));
 	}
 
 	@Test
-	@DisplayName("처리되지 않은 예외가 발생하면 500 INTERNAL_ERROR로 응답하고 내부 메시지를 노출하지 않는다")
+	@DisplayName("처리되지 않은 예외가 발생하면 500 COMMON5001로 응답하고 내부 메시지를 노출하지 않는다")
 	void unexpected() throws Exception {
 		mockMvc.perform(get("/unexpected"))
 				.andExpect(status().isInternalServerError())
-				.andExpect(jsonPath("$.error.code").value("INTERNAL_ERROR"))
-				.andExpect(jsonPath("$.error.message").value(ErrorCode.INTERNAL_ERROR.getDefaultMessage()));
+				.andExpect(jsonPath("$.error.code").value("COMMON5001"))
+				.andExpect(jsonPath("$.error.message").value(CommonErrorCode.INTERNAL_ERROR.getDefaultMessage()));
 	}
 
 	@RestController
@@ -126,7 +126,7 @@ class GlobalExceptionHandlerTest {
 
 		@GetMapping("/business")
 		void business() {
-			throw new BusinessException(ErrorCode.NOT_FOUND, "대상이 없습니다");
+			throw new BusinessException(CommonErrorCode.NOT_FOUND, "대상이 없습니다");
 		}
 
 		@PostMapping("/validate")

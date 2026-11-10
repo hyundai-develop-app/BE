@@ -1,11 +1,11 @@
 package com.hmc.hmcbe.parking.service.impl;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.global.geo.GeoPoint;
 import com.hmc.hmcbe.parking.dto.request.ParkRequest;
 import com.hmc.hmcbe.parking.dto.response.ParkingRecordResponse;
 import com.hmc.hmcbe.parking.entity.ParkingRecord;
+import com.hmc.hmcbe.parking.exception.ParkingErrorCode;
 import com.hmc.hmcbe.parking.repository.ParkingRecordRepository;
 import com.hmc.hmcbe.parking.service.ParkingRecordWriteService;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotReadService;
@@ -64,6 +64,6 @@ public class ParkingRecordWriteServiceImpl implements ParkingRecordWriteService 
 	private ParkingRecord findOwnedRecordOrThrow(Long userId, Long recordId) {
 		return parkingRecordRepository.findById(recordId)
 				.filter(record -> record.isOwnedBy(userId))
-				.orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "주차 기록을 찾을 수 없습니다"));
+				.orElseThrow(() -> new BusinessException(ParkingErrorCode.PARKING_RECORD_NOT_FOUND));
 	}
 }

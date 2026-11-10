@@ -7,6 +7,7 @@ import static com.hmc.hmcbe.global.exception.DomainPreconditions.requireText;
 
 import com.hmc.hmcbe.global.entity.BaseTimeEntity;
 import com.hmc.hmcbe.global.geo.GeoPoint;
+import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
@@ -58,11 +59,11 @@ public class ParkingLot extends BaseTimeEntity {
 
 	public static ParkingLot create(String name, GeoPoint location, boolean indoor, String entranceGuide,
 			int freeMinutes, ParkingFee fee, Integer totalSpaces) {
-		requireText(name, MAX_NAME_LENGTH, "주차장 이름");
-		requireNonNull(location, "주차장 위치");
-		requireMaxLength(entranceGuide, MAX_ENTRANCE_GUIDE_LENGTH, "입구 안내");
-		require(freeMinutes >= 0, "무료 시간은 0분 이상이어야 합니다");
-		require(totalSpaces == null || totalSpaces > 0, "총 면수는 1 이상이어야 합니다");
+		requireText(name, MAX_NAME_LENGTH, "주차장 이름", ParkingLotErrorCode.INVALID_PARKING_LOT);
+		requireNonNull(location, "주차장 위치", ParkingLotErrorCode.INVALID_PARKING_LOT);
+		requireMaxLength(entranceGuide, MAX_ENTRANCE_GUIDE_LENGTH, "입구 안내", ParkingLotErrorCode.INVALID_PARKING_LOT);
+		require(freeMinutes >= 0, "무료 시간은 0분 이상이어야 합니다", ParkingLotErrorCode.INVALID_PARKING_LOT);
+		require(totalSpaces == null || totalSpaces > 0, "총 면수는 1 이상이어야 합니다", ParkingLotErrorCode.INVALID_PARKING_LOT);
 		return new ParkingLot(name, location.toPoint(), indoor, entranceGuide, freeMinutes, fee, totalSpaces);
 	}
 

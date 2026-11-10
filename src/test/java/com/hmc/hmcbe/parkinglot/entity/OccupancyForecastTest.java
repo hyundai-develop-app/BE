@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
+import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -34,16 +34,16 @@ class OccupancyForecastTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> OccupancyForecast.create(1L, TARGET_AT, rate));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_FORECAST);
 	}
 
 	@Test
 	@DisplayName("주차장이나 대상 시각이 없으면 만들 수 없다")
 	void missingRequired() {
 		assertThat(assertThrows(BusinessException.class, () -> OccupancyForecast.create(null, TARGET_AT, 50))
-				.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+				.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_FORECAST);
 		assertThat(assertThrows(BusinessException.class, () -> OccupancyForecast.create(1L, null, 50))
-				.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+				.getErrorCode()).isEqualTo(ParkingLotErrorCode.INVALID_FORECAST);
 	}
 
 	@Test

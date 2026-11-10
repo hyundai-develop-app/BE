@@ -5,6 +5,7 @@ import static com.hmc.hmcbe.global.exception.DomainPreconditions.requireText;
 
 import com.hmc.hmcbe.global.entity.BaseTimeEntity;
 import com.hmc.hmcbe.global.geo.GeoPoint;
+import com.hmc.hmcbe.place.exception.PlaceErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -38,9 +39,9 @@ public class SavedPlace extends BaseTimeEntity {
 	}
 
 	public static SavedPlace create(Long userId, String name, GeoPoint location) {
-		requireNonNull(userId, "사용자 ID");
-		requireText(name, MAX_NAME_LENGTH, "장소 이름");
-		requireNonNull(location, "장소 위치");
+		requireNonNull(userId, "사용자 ID", PlaceErrorCode.INVALID_SAVED_PLACE);
+		requireText(name, MAX_NAME_LENGTH, "장소 이름", PlaceErrorCode.INVALID_SAVED_PLACE);
+		requireNonNull(location, "장소 위치", PlaceErrorCode.INVALID_SAVED_PLACE);
 		return new SavedPlace(userId, name, location.toPoint());
 	}
 

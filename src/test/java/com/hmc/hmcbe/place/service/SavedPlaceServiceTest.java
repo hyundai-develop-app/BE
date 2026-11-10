@@ -8,10 +8,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.place.dto.request.CreateSavedPlaceRequest;
 import com.hmc.hmcbe.place.dto.response.SavedPlaceResponse;
 import com.hmc.hmcbe.place.entity.SavedPlace;
+import com.hmc.hmcbe.place.exception.PlaceErrorCode;
 import com.hmc.hmcbe.place.fixture.SavedPlaceFixture;
 import com.hmc.hmcbe.place.repository.SavedPlaceRepository;
 import com.hmc.hmcbe.place.service.impl.SavedPlaceReadServiceImpl;
@@ -61,7 +61,7 @@ class SavedPlaceServiceTest {
 		BusinessException ex = assertThrows(BusinessException.class, () -> savedPlaceWriteService.create(1L,
 				new CreateSavedPlaceRequest("집", 37.4979, 127.0276)));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.CONFLICT);
+		assertThat(ex.getErrorCode()).isEqualTo(PlaceErrorCode.DUPLICATE_PLACE_NAME);
 		verify(savedPlaceRepository, never()).save(any());
 	}
 
@@ -83,7 +83,7 @@ class SavedPlaceServiceTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> savedPlaceWriteService.delete(1L, 10L));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(PlaceErrorCode.SAVED_PLACE_NOT_FOUND);
 		verify(savedPlaceRepository, never()).delete(any());
 	}
 

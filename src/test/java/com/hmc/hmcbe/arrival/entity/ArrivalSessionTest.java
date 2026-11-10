@@ -3,9 +3,9 @@ package com.hmc.hmcbe.arrival.entity;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.hmc.hmcbe.arrival.exception.ArrivalErrorCode;
 import com.hmc.hmcbe.arrival.fixture.ArrivalSessionFixture;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.global.geo.GeoPoint;
 import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
@@ -51,7 +51,7 @@ class ArrivalSessionTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> ArrivalSession.start(1L, name, DESTINATION, null, ETA));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ArrivalErrorCode.INVALID_ARRIVAL_SESSION);
 	}
 
 	@Test
@@ -80,7 +80,7 @@ class ArrivalSessionTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> session.selectWaypoint(null));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ArrivalErrorCode.INVALID_WAYPOINT);
 	}
 
 	@Test
@@ -90,7 +90,7 @@ class ArrivalSessionTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> session.selectWaypoint(7L));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(ArrivalErrorCode.INVALID_WAYPOINT);
 	}
 
 	@Test
@@ -122,11 +122,11 @@ class ArrivalSessionTest {
 		session.cancel(NOW);
 
 		assertThat(assertThrows(BusinessException.class, () -> session.complete(NOW)).getErrorCode())
-				.isEqualTo(ErrorCode.CONFLICT);
+				.isEqualTo(ArrivalErrorCode.ALREADY_ENDED);
 		assertThat(assertThrows(BusinessException.class, () -> session.cancel(NOW)).getErrorCode())
-				.isEqualTo(ErrorCode.CONFLICT);
+				.isEqualTo(ArrivalErrorCode.ALREADY_ENDED);
 		assertThat(assertThrows(BusinessException.class, () -> session.selectWaypoint(3L)).getErrorCode())
-				.isEqualTo(ErrorCode.CONFLICT);
+				.isEqualTo(ArrivalErrorCode.ALREADY_ENDED);
 		assertThat(session.getStatus()).isEqualTo(ArrivalStatus.CANCELLED);
 	}
 

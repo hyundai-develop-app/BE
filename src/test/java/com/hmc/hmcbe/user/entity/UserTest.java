@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
+import com.hmc.hmcbe.user.exception.UserErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -31,7 +31,7 @@ class UserTest {
 	void createWithBlankSubject(String subject) {
 		BusinessException ex = assertThrows(BusinessException.class, () -> User.create(subject));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(UserErrorCode.INVALID_AUTH_SUBJECT);
 	}
 
 	@Test
@@ -39,7 +39,7 @@ class UserTest {
 	void createWithTooLongSubject() {
 		BusinessException ex = assertThrows(BusinessException.class, () -> User.create("a".repeat(256)));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(UserErrorCode.INVALID_AUTH_SUBJECT);
 	}
 
 	@Test
@@ -65,7 +65,7 @@ class UserTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> user.updatePushToken(token));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(UserErrorCode.INVALID_PUSH_TOKEN);
 	}
 
 	@Test
@@ -75,6 +75,6 @@ class UserTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> user.updatePushToken("a".repeat(513)));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(UserErrorCode.INVALID_PUSH_TOKEN);
 	}
 }

@@ -8,9 +8,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.user.dto.response.UserResponse;
 import com.hmc.hmcbe.user.entity.User;
+import com.hmc.hmcbe.user.exception.UserErrorCode;
 import com.hmc.hmcbe.user.fixture.UserFixture;
 import com.hmc.hmcbe.user.repository.UserRepository;
 import com.hmc.hmcbe.user.service.impl.UserReadServiceImpl;
@@ -86,7 +86,7 @@ class UserServiceTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> userWriteService.updatePushToken(9L, "token"));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
 	}
 
 	@Test
@@ -112,6 +112,6 @@ class UserServiceTest {
 
 		BusinessException ex = assertThrows(BusinessException.class, () -> userReadService.getUser(9L));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.NOT_FOUND);
+		assertThat(ex.getErrorCode()).isEqualTo(UserErrorCode.USER_NOT_FOUND);
 	}
 }

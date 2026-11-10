@@ -4,6 +4,7 @@ import static com.hmc.hmcbe.global.exception.DomainPreconditions.require;
 import static com.hmc.hmcbe.global.exception.DomainPreconditions.requireNonNull;
 
 import com.hmc.hmcbe.global.entity.BaseTimeEntity;
+import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -38,8 +39,8 @@ public class OccupancyForecast extends BaseTimeEntity {
 	}
 
 	public static OccupancyForecast create(Long parkingLotId, Instant targetAt, int occupancyRate) {
-		requireNonNull(parkingLotId, "주차장 ID");
-		requireNonNull(targetAt, "예측 대상 시각");
+		requireNonNull(parkingLotId, "주차장 ID", ParkingLotErrorCode.INVALID_FORECAST);
+		requireNonNull(targetAt, "예측 대상 시각", ParkingLotErrorCode.INVALID_FORECAST);
 		validateRate(occupancyRate);
 		return new OccupancyForecast(parkingLotId, targetAt, occupancyRate);
 	}
@@ -58,6 +59,6 @@ public class OccupancyForecast extends BaseTimeEntity {
 	}
 
 	private static void validateRate(int occupancyRate) {
-		require(occupancyRate >= 0 && occupancyRate <= 100, "만차율은 0 ~ 100 사이여야 합니다");
+		require(occupancyRate >= 0 && occupancyRate <= 100, "만차율은 0 ~ 100 사이여야 합니다", ParkingLotErrorCode.INVALID_FORECAST);
 	}
 }

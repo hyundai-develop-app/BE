@@ -77,20 +77,20 @@ class ParkingLotControllerTest {
 						.param("latitude", "37.5259")
 						.param("longitude", "126.9284"))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4001"));
 
 		verifyNoInteractions(parkingLotReadService);
 	}
 
 	@Test
-	@DisplayName("위도가 범위를 벗어나면 400 INVALID_REQUEST")
+	@DisplayName("위도가 범위를 벗어나면 400 COMMON4002")
 	void findNearbyWithInvalidLatitude() throws Exception {
 		mockMvc.perform(get("/api/v1/parking-lots/nearby").with(authenticated())
 						.param("latitude", "91")
 						.param("longitude", "126.9284")
 						.param("at", AT.toString()))
 				.andExpect(status().isBadRequest())
-				.andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+				.andExpect(jsonPath("$.error.code").value("COMMON4002"));
 
 		verify(parkingLotReadService, never()).findNearby(any(), anyInt(), any());
 	}

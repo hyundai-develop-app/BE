@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.global.geo.GeoPoint;
+import com.hmc.hmcbe.place.exception.PlaceErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,7 +33,7 @@ class SavedPlaceTest {
 	void blankName(String name) {
 		BusinessException ex = assertThrows(BusinessException.class, () -> SavedPlace.create(1L, name, HOME));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(PlaceErrorCode.INVALID_SAVED_PLACE);
 	}
 
 	@Test
@@ -42,16 +42,16 @@ class SavedPlaceTest {
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> SavedPlace.create(1L, "a".repeat(51), HOME));
 
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INVALID_REQUEST);
+		assertThat(ex.getErrorCode()).isEqualTo(PlaceErrorCode.INVALID_SAVED_PLACE);
 	}
 
 	@Test
 	@DisplayName("사용자나 위치가 없으면 저장할 수 없다")
 	void missingRequired() {
 		assertThat(assertThrows(BusinessException.class, () -> SavedPlace.create(null, "집", HOME)).getErrorCode())
-				.isEqualTo(ErrorCode.INVALID_REQUEST);
+				.isEqualTo(PlaceErrorCode.INVALID_SAVED_PLACE);
 		assertThat(assertThrows(BusinessException.class, () -> SavedPlace.create(1L, "집", null)).getErrorCode())
-				.isEqualTo(ErrorCode.INVALID_REQUEST);
+				.isEqualTo(PlaceErrorCode.INVALID_SAVED_PLACE);
 	}
 
 	@Test

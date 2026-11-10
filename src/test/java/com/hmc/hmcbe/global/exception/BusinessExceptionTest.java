@@ -11,11 +11,11 @@ class BusinessExceptionTest {
 	@DisplayName("메시지 없이 생성하면 ErrorCode의 기본 메시지를 사용한다")
 	void defaultMessage() {
 		// when
-		BusinessException ex = new BusinessException(ErrorCode.CONFLICT);
+		BusinessException ex = new BusinessException(CommonErrorCode.INVALID_REQUEST);
 
 		// then
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.CONFLICT);
-		assertThat(ex.getMessage()).isEqualTo(ErrorCode.CONFLICT.getDefaultMessage());
+		assertThat(ex.getErrorCode()).isEqualTo(CommonErrorCode.INVALID_REQUEST);
+		assertThat(ex.getMessage()).isEqualTo(CommonErrorCode.INVALID_REQUEST.getDefaultMessage());
 	}
 
 	@Test
@@ -25,10 +25,10 @@ class BusinessExceptionTest {
 		IllegalStateException cause = new IllegalStateException();
 
 		// when
-		BusinessException ex = new BusinessException(ErrorCode.INTERNAL_ERROR, "실패", cause);
+		BusinessException ex = new BusinessException(CommonErrorCode.INTERNAL_ERROR, "실패", cause);
 
 		// then
-		assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.INTERNAL_ERROR);
+		assertThat(ex.getErrorCode()).isEqualTo(CommonErrorCode.INTERNAL_ERROR);
 		assertThat(ex.getCause()).isSameAs(cause);
 	}
 }

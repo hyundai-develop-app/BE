@@ -4,9 +4,9 @@ import static com.hmc.hmcbe.global.exception.DomainPreconditions.require;
 import static com.hmc.hmcbe.global.exception.DomainPreconditions.requireNonNull;
 import static com.hmc.hmcbe.global.exception.DomainPreconditions.requireText;
 
+import com.hmc.hmcbe.arrival.exception.ArrivalErrorCode;
 import com.hmc.hmcbe.global.entity.BaseTimeEntity;
 import com.hmc.hmcbe.global.exception.BusinessException;
-import com.hmc.hmcbe.global.exception.ErrorCode;
 import com.hmc.hmcbe.global.geo.GeoPoint;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -62,18 +62,18 @@ public class ArrivalSession extends BaseTimeEntity {
 
 	public static ArrivalSession start(Long userId, String destinationName, GeoPoint destinationLocation,
 			Long destinationParkingLotId, Instant expectedArrivalAt) {
-		requireNonNull(userId, "사용자 ID");
-		requireText(destinationName, MAX_DESTINATION_NAME_LENGTH, "목적지 이름");
-		requireNonNull(destinationLocation, "목적지 위치");
-		requireNonNull(expectedArrivalAt, "예상 도착 시각");
+		requireNonNull(userId, "사용자 ID", ArrivalErrorCode.INVALID_ARRIVAL_SESSION);
+		requireText(destinationName, MAX_DESTINATION_NAME_LENGTH, "목적지 이름", ArrivalErrorCode.INVALID_ARRIVAL_SESSION);
+		requireNonNull(destinationLocation, "목적지 위치", ArrivalErrorCode.INVALID_ARRIVAL_SESSION);
+		requireNonNull(expectedArrivalAt, "예상 도착 시각", ArrivalErrorCode.INVALID_ARRIVAL_SESSION);
 		return new ArrivalSession(userId, destinationName, destinationLocation.toPoint(),
 				destinationParkingLotId, expectedArrivalAt);
 	}
 
 	public void selectWaypoint(Long parkingLotId) {
 		requireActive();
-		requireNonNull(parkingLotId, "경유 주차장 ID");
-		require(!parkingLotId.equals(destinationParkingLotId), "목적지 주차장은 경유지로 넣을 수 없습니다");
+		requireNonNull(parkingLotId, "경유 주차장 ID", ArrivalErrorCode.INVALID_WAYPOINT);
+		require(!parkingLotId.equals(destinationParkingLotId), "목적지 주차장은 경유지로 넣을 수 없습니다", ArrivalErrorCode.INVALID_WAYPOINT);
 		this.waypointParkingLotId = parkingLotId;
 	}
 
@@ -96,12 +96,12 @@ public class ArrivalSession extends BaseTimeEntity {
 	private void end(ArrivalStatus endStatus, Instant now) {
 		requireActive();
 		this.status = endStatus;
-		this.endedAt = requireNonNull(now, "종료 시각");
+		this.endedAt = requireNonNull(now, "종료 시각", ArrivalErrorCode.INVALID_ARRIVAL_SESSION);
 	}
 
 	private void requireActive() {
 		if (status != ArrivalStatus.ACTIVE) {
-			throw new BusinessException(ErrorCode.CONFLICT, "이미 끝난 도착 모드입니다");
+			throw new BusinessException(ArrivalErrorCode.ALREADY_ENDED);
 		}
 	}
 }
