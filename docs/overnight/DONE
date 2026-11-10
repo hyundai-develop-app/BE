@@ -1,0 +1,1 @@
+Figma 도착 모드 주차 도우미 기준으로 V1 스키마와 5개 도메인(user, parkinglot, place, arrival, parking)의 엔티티·서비스·API를 구현했고 ./gradlew check 전체 통과(테스트 188개). 보류 항목은 BLOCKERS.md 참고.

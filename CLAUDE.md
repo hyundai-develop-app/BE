@@ -66,8 +66,8 @@
 
 참고 프로젝트(Deoham-BE)의 `global.response`/`global.exception` 포맷을 따르기로 했습니다. **아직 이 저장소에 코드는 없으므로** 첫 Controller를 만들기 전에 `global` 패키지에 아래 클래스를 먼저 구현합니다. 새 Controller는 이 포맷을 사용합니다.
 
-- `com.hmc.hmcbe.global.response.ApiResponse<T>` — `record ApiResponse<T>(boolean success, T data, ErrorBody error)`. 성공은 `ApiResponse.ok(data)`/`ApiResponse.ok()`, 실패는 `ApiResponse.fail(ErrorCode, message)`로 생성합니다.
-- `com.hmc.hmcbe.global.exception.ErrorCode` — HTTP 상태별 소수의 범용 코드(`INVALID_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `INTERNAL_ERROR`)만 정의. `docs/CODE_CONVENTIONS.md` 2.3 참고 — 클라이언트가 분기해야 하는 계약이면 코드를 추가하고, 그 외에는 메시지로 구분합니다.
+- `com.hmc.hmcbe.global.response.ApiResponse<T>` — `record ApiResponse<T>(boolean success, T data, ErrorBody error)`. 성공은 `ApiResponse.ok(data)`/`ApiResponse.ok()`, 실패는 `ApiResponse.fail(ErrorCode, message)`로 생성합니다. `error.code`에는 `USER4041` 같은 코드 문자열이 들어갑니다.
+- `com.hmc.hmcbe.global.exception.ErrorCode` — 에러 코드 인터페이스. 코드 형식은 `{DOMAIN}{HTTP 상태}{순번}`(예: `USER4041`)입니다. 공통 코드는 `global.exception.CommonErrorCode`(`COMMON4001` 등), 도메인 코드는 `{domain}.exception.{Domain}ErrorCode`에 둡니다. 규칙은 `docs/CODE_CONVENTIONS.md` 2.3, 전체 목록은 `docs/ERROR_CODES.md`.
 - `com.hmc.hmcbe.global.exception.BusinessException` — `ErrorCode` + 메시지를 갖는 도메인 예외.
 - `com.hmc.hmcbe.global.exception.GlobalExceptionHandler` — `@RestControllerAdvice`. `BusinessException`, Bean Validation 예외, 인증/인가 예외, 처리되지 않은 예외를 모두 `ApiResponse.fail(...)`로 변환합니다.
 

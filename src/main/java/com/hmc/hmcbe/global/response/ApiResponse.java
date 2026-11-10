@@ -16,7 +16,7 @@ public record ApiResponse<T>(
 	}
 
 	public static ApiResponse<Void> fail(ErrorCode code, String message) {
-		return new ApiResponse<>(false, null, new ErrorBody(code.name(), message));
+		return new ApiResponse<>(false, null, new ErrorBody(code.getCode(), message));
 	}
 
 	public record ErrorBody(String code, String message) {

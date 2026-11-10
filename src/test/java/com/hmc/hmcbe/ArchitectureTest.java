@@ -49,6 +49,7 @@ class ArchitectureTest {
 	@Test
 	void 다른_도메인의_entity_repository_service_impl을_직접_참조하지_않는다() {
 		// 도메인 간 허용 경로는 상대 도메인의 service 인터페이스와 event뿐이다 (CODE_CONVENTIONS 7.6).
+		// 다른 도메인의 ErrorCode를 직접 던지면 코드의 도메인 접두사가 거짓이 되므로 exception 패키지도 막는다.
 		ArchRule rule = classes()
 				.that().resideOutsideOfPackage("..global..")
 				.should(notDependOnInternalsOfOtherDomains());
@@ -93,7 +94,7 @@ class ArchitectureTest {
 	}
 
 	private static ArchCondition<JavaClass> notDependOnInternalsOfOtherDomains() {
-		return new ArchCondition<>("다른 도메인의 entity/repository/service.impl에 의존하지 않는다") {
+		return new ArchCondition<>("다른 도메인의 entity/repository/service.impl/exception에 의존하지 않는다") {
 			@Override
 			public void check(JavaClass origin, ConditionEvents events) {
 				String originDomain = domainOf(origin);
@@ -106,7 +107,8 @@ class ArchitectureTest {
 					String targetPackage = target.getPackageName();
 					boolean internal = targetPackage.contains(".entity")
 							|| targetPackage.contains(".repository")
-							|| targetPackage.contains(".service.impl");
+							|| targetPackage.contains(".service.impl")
+							|| targetPackage.contains(".exception");
 					if (internal) {
 						events.add(SimpleConditionEvent.violated(dependency, dependency.getDescription()));
 					}

@@ -1,20 +1,18 @@
 package com.hmc.hmcbe.global.exception;
 
-import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 
-@Getter
-@RequiredArgsConstructor
-public enum ErrorCode {
+/**
+ * API 실패 응답의 에러 코드 계약.
+ *
+ * <p>코드 형식은 {@code {DOMAIN}{HTTP 상태 3자리}{순번 1자리}}이다. 예: {@code USER4041} = user 도메인, 404, 1번.
+ * DOMAIN은 도메인 패키지 이름을 대문자로 쓴 것이고, global은 {@code COMMON}을 쓴다. 형식은 ErrorCodeConventionTest가 검증한다.
+ */
+public interface ErrorCode {
 
-	INVALID_REQUEST(HttpStatus.BAD_REQUEST, "Invalid request"),
-	UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "Authentication required"),
-	FORBIDDEN(HttpStatus.FORBIDDEN, "Access denied"),
-	NOT_FOUND(HttpStatus.NOT_FOUND, "Resource not found"),
-	CONFLICT(HttpStatus.CONFLICT, "Resource conflict"),
-	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error");
+	HttpStatus getStatus();
 
-	private final HttpStatus status;
-	private final String defaultMessage;
+	String getCode();
+
+	String getDefaultMessage();
 }
