@@ -22,6 +22,13 @@ bin/
 # Firebase / credentials
 firebase-service-account*.json
 
+# Terraform (.terraform.lock.hcl은 커밋한다)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+
 # Logs
 *.log
 
