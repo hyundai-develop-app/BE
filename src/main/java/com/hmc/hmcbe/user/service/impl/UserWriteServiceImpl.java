@@ -19,7 +19,13 @@ public class UserWriteServiceImpl implements UserWriteService {
 	@Override
 	public Long resolveUserId(String authSubject) {
 		return userRepository.findByAuthSubject(authSubject)
-				.orElseGet(() -> userRepository.save(User.create(authSubject)))
+				.orElseGet(() -> {
+					String subject = User.create(authSubject).getAuthSubject();
+					// 충돌한 INSERT가 끝난 다음 조회하여 먼저 생성된 사용자의 ID를 반환한다.
+					userRepository.insertIfAbsent(subject);
+					return userRepository.findByAuthSubject(subject)
+							.orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+				})
 				.getId();
 	}
 

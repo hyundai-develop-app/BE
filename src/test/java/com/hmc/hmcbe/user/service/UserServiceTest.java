@@ -54,14 +54,41 @@ class UserServiceTest {
 	@DisplayName("처음 보는 subject면 사용자를 만들고 ID를 반환한다")
 	void resolveNewUser() {
 		// given
-		given(userRepository.findByAuthSubject("new-sub")).willReturn(Optional.empty());
-		given(userRepository.save(any(User.class))).willReturn(UserFixture.userWithId(2L));
+		given(userRepository.findByAuthSubject("new-sub"))
+				.willReturn(Optional.empty(), Optional.of(UserFixture.userWithId(2L)));
+		given(userRepository.insertIfAbsent("new-sub")).willReturn(1);
 
 		// when
 		Long userId = userWriteService.resolveUserId("new-sub");
 
 		// then
 		assertThat(userId).isEqualTo(2L);
+		verify(userRepository).insertIfAbsent("new-sub");
+	}
+
+	@Test
+	@DisplayName("동시 요청이 먼저 사용자를 만들었으면 재조회한 사용자 ID를 반환한다")
+	void resolveUserCreatedByConcurrentRequest() {
+		given(userRepository.findByAuthSubject("racing-sub"))
+				.willReturn(Optional.empty(), Optional.of(UserFixture.userWithId(3L)));
+		given(userRepository.insertIfAbsent("racing-sub")).willReturn(0);
+
+		Long userId = userWriteService.resolveUserId("racing-sub");
+
+		assertThat(userId).isEqualTo(3L);
+		verify(userRepository, never()).save(any());
+	}
+
+	@Test
+	@DisplayName("새 subject가 유효하지 않으면 DB에 삽입하지 않는다")
+	void rejectInvalidSubjectBeforeInsert() {
+		given(userRepository.findByAuthSubject(" ")).willReturn(Optional.empty());
+
+		BusinessException ex = assertThrows(BusinessException.class,
+				() -> userWriteService.resolveUserId(" "));
+
+		assertThat(ex.getErrorCode()).isEqualTo(UserErrorCode.INVALID_AUTH_SUBJECT);
+		verify(userRepository, never()).insertIfAbsent(any());
 	}
 
 	@Test
