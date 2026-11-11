@@ -1,12 +1,12 @@
 # infra/terraform
 
-HMC-BE의 AWS 인프라를 Terraform으로 관리합니다. AWS 프리티어 계정 기준으로 **비용이 거의 0원인 최소 구성**만 둡니다.
+HMC-BE의 AWS 인프라를 Terraform으로 관리합니다. 상시 실행 컴퓨팅 리소스를 제외한 최소 구성입니다. S3 사용량에 따른 비용은 발생할 수 있습니다.
 
 ## 만들어지는 리소스
 
 | 리소스 | 용도 | 비용 |
 |---|---|---|
-| S3 버킷 `hmc-prod-uploads-<계정ID>` | 1:1 문의 이미지 (비공개, SSE-S3 암호화, HTTPS 전용, 버저닝 없음) | 프리티어 5GB / 월 GET 2만·PUT 2천 (12개월) |
+| S3 버킷 `hmc-prod-uploads-<계정ID>` | 1:1 문의 이미지 (비공개, SSE-S3 암호화, HTTPS 전용, 버저닝 없음) | 저장 용량·요청·전송량에 따른 과금 (계정별 무료 혜택 확인) |
 | IAM 정책 `hmc-prod-app-s3` | 위 버킷의 객체 읽기·쓰기·삭제와 목록 조회만 허용 | 무료 |
 | IAM 사용자 `hmc-prod-app` | 서버가 쓰는 계정 (정책 연결) | 무료 |
 
@@ -36,7 +36,7 @@ terraform output              # s3_bucket_name 등
 액세스 키는 state 파일에 평문으로 남지 않도록 Terraform이 만들지 않습니다. `apply` 후 직접 발급합니다.
 
 ```bash
-aws iam create-access-key --user-name hmc-prod-app
+aws iam create-access-key --user-name "$(terraform output -raw app_iam_user)"
 ```
 
 발급된 키는 서버의 환경변수(`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`)로만 주입하고 저장소에 커밋하지 않습니다.
@@ -46,3 +46,7 @@ aws iam create-access-key --user-name hmc-prod-app
 - `terraform.tfstate`에 계정 정보가 들어가므로 `.gitignore`로 제외되어 있습니다. 잃어버리면 기존 리소스를 `terraform import`해야 하니 백업하세요.
 - `.terraform.lock.hcl`은 커밋합니다(프로바이더 버전 고정).
 - 문의 이미지 보관 기간을 제한하려면 `inquiry_image_expiration_days` 변수를 지정합니다. 기본값 0은 만료 없음입니다.
+
+## 무료 혜택과 비용 확인
+
+2025년 7월 15일 이후 신규 계정에는 크레딧 기반 Free Tier가 적용됩니다. 기존의 S3 12개월 무료 한도를 모든 계정에 적용할 수 없으며, 이 구성 자체가 비용 상한을 보장하지 않습니다. 배포 전에 계정의 플랜·크레딧·만료일을 확인하세요. [AWS 공식 안내](https://aws.amazon.com/free/free-tier-faqs/)를 참고하세요.

@@ -27,6 +27,8 @@ firebase-service-account*.json
 *.tfstate
 *.tfstate.*
 *.tfvars
+*.tfvars.json
+*.tfplan
 crash.log
 
 # Logs
