@@ -1,0 +1,71 @@
+name: Deploy
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-2' }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        id: image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.ECR_REPOSITORY }}:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Deploy through SSM and verify result
+        env:
+          IMAGE_DIGEST: ${{ steps.image.outputs.digest }}
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, pathlib, shlex
+          compose = base64.b64encode(pathlib.Path("docker-compose.prod.yml").read_bytes()).decode()
+          script = base64.b64encode(pathlib.Path("scripts/deploy-ec2.sh").read_bytes()).decode()
+          image = os.environ["ECR_REPOSITORY"] + "@" + os.environ["IMAGE_DIGEST"]
+          command = (
+              "set -eu\ncd /opt/hmc\ntest -s .env\n"
+              f"echo {compose} | base64 -d > docker-compose.yml\n"
+              f"echo {script} | base64 -d > deploy.sh\n"
+              f"bash deploy.sh {shlex.quote(image)} {shlex.quote(os.environ['AWS_REGION'])}\n"
+          )
+          pathlib.Path("/tmp/ssm.json").write_text(json.dumps({"commands": [command], "executionTimeout": ["900"]}))
+          PY
+          command_id=$(aws ssm send-command --instance-ids "$EC2_INSTANCE_ID" --document-name AWS-RunShellScript --parameters file:///tmp/ssm.json --query Command.CommandId --output text)
+          for attempt in $(seq 1 180); do
+            status=$(aws ssm get-command-invocation --command-id "$command_id" --instance-id "$EC2_INSTANCE_ID" --query Status --output text 2>/dev/null || true)
+            case "$status" in
+              Success) exit 0 ;;
+              Failed|Cancelled|TimedOut|Cancelling)
+                aws ssm get-command-invocation --command-id "$command_id" --instance-id "$EC2_INSTANCE_ID"
+                exit 1 ;;
+            esac
+            sleep 5
+          done
+          echo "SSM deployment timed out"
+          exit 1
