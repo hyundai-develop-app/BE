@@ -106,6 +106,43 @@ class ArrivalReadServiceTest {
 	}
 
 	@Test
+	@DisplayName("목적지 주차장이 500m 밖에 있어도 ID로 조회해 그보다 여유 있는 곳만 추천한다")
+	void compareDestinationOutsideSearchRadius() {
+		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
+		NearbyParkingLotResponse distantDestination = candidate(7L, 1500, 20, "AVAILABLE");
+		NearbyParkingLotResponse better = candidate(4L, 250, 10, "AVAILABLE");
+		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA))
+				.willReturn(List.of(publicLot, better));
+		given(parkingLotReadService.getNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA))
+				.willReturn(distantDestination);
+
+		ParkingBriefingResponse briefing = arrivalReadService.getBriefing(1L, 5L);
+
+		assertThat(briefing.destinationParkingLot()).isEqualTo(distantDestination);
+		assertThat(briefing.alternatives()).containsExactly(better);
+		assertThat(briefing.recommended()).isEqualTo(better);
+	}
+
+	@Test
+	@DisplayName("가까운 10개에서 목적지 주차장이 빠져도 목적지 예측을 대기 화면에 반환한다")
+	void getOutlookWhenDestinationExcludedByLimit() {
+		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
+		List<NearbyParkingLotResponse> nearby = java.util.stream.LongStream.rangeClosed(10, 19)
+				.mapToObj(id -> candidate(id, 100, 40, "AVAILABLE")).toList();
+		NearbyParkingLotResponse omittedDestination = candidate(7L, 400, 20, "AVAILABLE");
+		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA)).willReturn(nearby);
+		given(parkingLotReadService.getNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA))
+				.willReturn(omittedDestination);
+
+		ArrivalOutlookResponse outlook = arrivalReadService.getOutlook(1L, 5L);
+
+		assertThat(outlook.destinationParkingLot()).isEqualTo(omittedDestination);
+		assertThat(outlook.betterAlternativeCount()).isZero();
+	}
+
+	@Test
 	@DisplayName("다른 사용자의 세션 브리핑은 NOT_FOUND")
 	void getOthersBriefing() {
 		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(2L), 5L);

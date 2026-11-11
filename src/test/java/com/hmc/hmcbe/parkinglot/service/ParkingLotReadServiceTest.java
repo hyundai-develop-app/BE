@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
@@ -65,6 +66,37 @@ class ParkingLotReadServiceTest {
 		assertThat(result.get(0).forecast()).isNull();
 		assertThat(result.get(1).forecast().occupancyRate()).isEqualTo(95);
 		assertThat(result.get(1).forecast().congestionLevel()).isEqualTo("CONGESTED");
+	}
+
+	@Test
+	@DisplayName("ID로 주차장을 조회하면 거리와 기준 시각 슬롯의 가장 늦은 예측을 반환한다")
+	void getNearbyByIdWithForecast() {
+		given(parkingLotRepository.findById(1L)).willReturn(Optional.of(ParkingLotFixture.parkingLotWithId(1L)));
+		given(parkingLotRepository.findNearbyById(1L, ParkingLotFixture.YEOUIDO.latitude(),
+				ParkingLotFixture.YEOUIDO.longitude())).willReturn(Optional.of(projection(1L, 1500.6)));
+		Instant slotStart = AT.minusSeconds(1800).plusNanos(1);
+		given(occupancyForecastRepository.findByParkingLotIdInAndTargetAtBetween(List.of(1L), slotStart, AT))
+				.willReturn(List.of(ParkingLotFixture.forecast(1L, AT.minusSeconds(600), 20),
+						ParkingLotFixture.forecast(1L, AT.minusSeconds(1200), 80)));
+
+		NearbyParkingLotResponse result = parkingLotReadService.getNearbyById(1L, ParkingLotFixture.YEOUIDO, AT);
+
+		assertThat(result.parkingLot().id()).isEqualTo(1L);
+		assertThat(result.distanceMeters()).isEqualTo(1501);
+		assertThat(result.forecast().occupancyRate()).isEqualTo(20);
+		verify(occupancyForecastRepository).findByParkingLotIdInAndTargetAtBetween(List.of(1L), slotStart, AT);
+	}
+
+	@Test
+	@DisplayName("ID로 조회한 주차장의 기준 시각 예측이 없으면 forecast는 null이다")
+	void getNearbyByIdWithoutForecast() {
+		given(parkingLotRepository.findById(1L)).willReturn(Optional.of(ParkingLotFixture.parkingLotWithId(1L)));
+		given(parkingLotRepository.findNearbyById(1L, ParkingLotFixture.YEOUIDO.latitude(),
+				ParkingLotFixture.YEOUIDO.longitude())).willReturn(Optional.of(projection(1L, 1500)));
+
+		NearbyParkingLotResponse result = parkingLotReadService.getNearbyById(1L, ParkingLotFixture.YEOUIDO, AT);
+
+		assertThat(result.forecast()).isNull();
 	}
 
 	@Test
