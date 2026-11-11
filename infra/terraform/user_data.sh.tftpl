@@ -1,0 +1,83 @@
+#!/bin/bash
+# HMC-BE EC2 부트스트랩. 인스턴스를 처음 켤 때 한 번만 실행된다. 로그: /var/log/hmc-bootstrap.log
+set -euo pipefail
+exec > >(tee -a /var/log/hmc-bootstrap.log) 2>&1
+echo "[hmc] bootstrap start $(date -u +%FT%TZ)"
+
+# 1) 스왑 파일: 작은 인스턴스에서 JVM과 DB를 함께 돌릴 때 메모리 부족을 완충한다.
+%{ if swap_size_gb > 0 ~}
+if [ ! -f /swapfile ]; then
+  dd if=/dev/zero of=/swapfile bs=1M count=$((${swap_size_gb} * 1024))
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+%{ endif ~}
+
+# 2) Docker
+dnf install -y docker
+systemctl enable --now docker
+usermod -aG docker ec2-user || true
+
+# 3) Docker Compose 플러그인 (GitHub 릴리스에서 받는다)
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/v${docker_compose_version}/docker-compose-linux-x86_64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+# 4) 앱 작업 디렉터리와 환경변수 파일(.env)
+mkdir -p /opt/hmc
+cd /opt/hmc
+if [ ! -f .env ]; then
+  umask 077
+  cat > .env <<ENV
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=hmc
+DB_USERNAME=hmc
+DB_PASSWORD=$(openssl rand -hex 24)
+
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+AWS_REGION=${region}
+AWS_S3_BUCKET=${s3_bucket}
+
+OAUTH2_ISSUER_URI=
+FIREBASE_CREDENTIALS_PATH=
+LOKI_URL=
+ENV
+fi
+
+# 5) PostgreSQL(PostGIS) + Redis: 이 인스턴스 안에서만 접근 가능하다(127.0.0.1에만 바인딩).
+%{ if bootstrap_data_services ~}
+cat > docker-compose.yml <<'COMPOSE'
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: hmc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: $${DB_NAME}
+      POSTGRES_USER: $${DB_USERNAME}
+      POSTGRES_PASSWORD: $${DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: hmc-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+
+volumes:
+  postgres-data:
+COMPOSE
+docker compose up -d
+%{ endif ~}
+
+echo "[hmc] bootstrap done $(date -u +%FT%TZ)"
