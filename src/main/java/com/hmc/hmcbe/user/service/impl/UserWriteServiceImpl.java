@@ -20,11 +20,12 @@ public class UserWriteServiceImpl implements UserWriteService {
 	public Long resolveUserId(String authSubject) {
 		return userRepository.findByAuthSubject(authSubject)
 				.orElseGet(() -> {
+					// 엔티티 불변식으로 검증한다. 네이티브 INSERT의 생성 시각은 SQL에서 설정한다.
 					String subject = User.create(authSubject).getAuthSubject();
-					// 충돌한 INSERT가 끝난 다음 조회하여 먼저 생성된 사용자의 ID를 반환한다.
+					// READ COMMITTED에서 다음 SELECT가 새 스냅샷으로 충돌 상대의 커밋을 읽는다.
 					userRepository.insertIfAbsent(subject);
 					return userRepository.findByAuthSubject(subject)
-							.orElseThrow(() -> new BusinessException(UserErrorCode.USER_NOT_FOUND));
+							.orElseThrow(() -> new IllegalStateException("사용자 생성 후 재조회에 실패했습니다"));
 				})
 				.getId();
 	}

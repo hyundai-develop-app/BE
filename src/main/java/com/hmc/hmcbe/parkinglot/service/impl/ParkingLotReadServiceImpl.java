@@ -70,14 +70,13 @@ public class ParkingLotReadServiceImpl implements ParkingLotReadService {
 	}
 
 	@Override
-	public NearbyParkingLotResponse getNearbyById(Long parkingLotId, GeoPoint center, Instant at) {
-		ParkingLot lot = findParkingLotOrThrow(parkingLotId);
-		NearbyParkingLotProjection distance = parkingLotRepository
-				.findNearbyById(parkingLotId, center.latitude(), center.longitude())
-				.orElseThrow(() -> new BusinessException(ParkingLotErrorCode.PARKING_LOT_NOT_FOUND));
-		OccupancyForecast forecast = latestForecastsInSlot(List.of(parkingLotId), at).get(parkingLotId);
-		return NearbyParkingLotResponse.of(ParkingLotResponse.from(lot), distance.getDistanceMeters(),
-				forecast == null ? null : OccupancyForecastResponse.from(forecast));
+	public java.util.Optional<NearbyParkingLotResponse> findNearbyById(Long parkingLotId, GeoPoint center, Instant at) {
+		return parkingLotRepository.findNearbyById(parkingLotId, center.latitude(), center.longitude())
+				.flatMap(distance -> parkingLotRepository.findById(parkingLotId).map(lot -> {
+					OccupancyForecast forecast = latestForecastsInSlot(List.of(parkingLotId), at).get(parkingLotId);
+					return NearbyParkingLotResponse.of(ParkingLotResponse.from(lot), distance.getDistanceMeters(),
+							forecast == null ? null : OccupancyForecastResponse.from(forecast));
+				}));
 	}
 
 	@Override

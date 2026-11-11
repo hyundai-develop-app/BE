@@ -96,9 +96,21 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(DataIntegrityViolationException.class)
 	public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
+		if (!isUniqueViolation(ex)) {
+			return handleUnexpected(ex, request);
+		}
 		log.warn("데이터 제약 충돌 [{} {}]", request.getMethod(), request.getRequestURI(), ex);
 		return ResponseEntity.status(CommonErrorCode.CONFLICT.getStatus())
 				.body(ApiResponse.fail(CommonErrorCode.CONFLICT, CommonErrorCode.CONFLICT.getDefaultMessage()));
+	}
+
+	private boolean isUniqueViolation(Throwable exception) {
+		for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+			if (cause instanceof java.sql.SQLException sql && "23505".equals(sql.getSQLState())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@ExceptionHandler(Exception.class)

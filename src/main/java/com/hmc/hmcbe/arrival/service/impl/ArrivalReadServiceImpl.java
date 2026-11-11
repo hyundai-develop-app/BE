@@ -49,7 +49,7 @@ public class ArrivalReadServiceImpl implements ArrivalReadService {
 		return new ArrivalOutlookResponse(
 				ArrivalSessionResponse.from(session),
 				recommendation.destination(),
-				destinationForecasts(session),
+				recommendation.destination() == null ? List.of() : destinationForecasts(session),
 				recommendation.alternatives().size());
 	}
 
@@ -67,8 +67,8 @@ public class ArrivalReadServiceImpl implements ArrivalReadService {
 				session.getDestinationLocation(), SEARCH_RADIUS_METERS, session.getExpectedArrivalAt()));
 		Long destinationId = session.getDestinationParkingLotId();
 		if (destinationId != null && candidates.stream().noneMatch(c -> c.parkingLot().id().equals(destinationId))) {
-			candidates.add(parkingLotReadService.getNearbyById(
-					destinationId, session.getDestinationLocation(), session.getExpectedArrivalAt()));
+			parkingLotReadService.findNearbyById(
+					destinationId, session.getDestinationLocation(), session.getExpectedArrivalAt()).ifPresent(candidates::add);
 		}
 		return recommendationPolicy.recommend(destinationId, candidates);
 	}

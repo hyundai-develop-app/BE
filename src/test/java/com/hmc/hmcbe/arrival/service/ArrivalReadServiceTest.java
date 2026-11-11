@@ -53,6 +53,18 @@ class ArrivalReadServiceTest {
 	}
 
 	@Test
+	@DisplayName("목적지 주차장이 삭제되어도 브리핑과 대기 화면을 조회한다")
+	void missingDestination() {
+		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
+		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA)).willReturn(List.of(publicLot));
+		given(parkingLotReadService.findNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA)).willReturn(Optional.empty());
+
+		assertThat(arrivalReadService.getBriefing(1L, 5L).destinationParkingLot()).isNull();
+		assertThat(arrivalReadService.getOutlook(1L, 5L).destinationParkingLot()).isNull();
+	}
+
+	@Test
 	@DisplayName("대기 화면은 목적지 주차장 도착 예측, 도착 전후 1시간 예측, 더 여유 있는 주차장 수를 준다")
 	void getOutlook() {
 		// given
@@ -114,8 +126,8 @@ class ArrivalReadServiceTest {
 		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
 		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA))
 				.willReturn(List.of(publicLot, better));
-		given(parkingLotReadService.getNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA))
-				.willReturn(distantDestination);
+		given(parkingLotReadService.findNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA))
+				.willReturn(Optional.of(distantDestination));
 
 		ParkingBriefingResponse briefing = arrivalReadService.getBriefing(1L, 5L);
 
@@ -133,8 +145,8 @@ class ArrivalReadServiceTest {
 		NearbyParkingLotResponse omittedDestination = candidate(7L, 400, 20, "AVAILABLE");
 		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
 		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA)).willReturn(nearby);
-		given(parkingLotReadService.getNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA))
-				.willReturn(omittedDestination);
+		given(parkingLotReadService.findNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA))
+				.willReturn(Optional.of(omittedDestination));
 
 		ArrivalOutlookResponse outlook = arrivalReadService.getOutlook(1L, 5L);
 

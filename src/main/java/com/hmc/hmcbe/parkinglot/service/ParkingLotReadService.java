@@ -15,7 +15,7 @@ public interface ParkingLotReadService {
 	List<NearbyParkingLotResponse> findNearby(GeoPoint center, int radiusMeters, Instant at);
 
 	/** ID로 지정한 주차장의 거리와 기준 시각 예측을 반경·결과 수 제한 없이 반환한다. */
-	NearbyParkingLotResponse getNearbyById(Long parkingLotId, GeoPoint center, Instant at);
+	java.util.Optional<NearbyParkingLotResponse> findNearbyById(Long parkingLotId, GeoPoint center, Instant at);
 
 	/** from 이상 to 이하 구간의 예측 만차율을 시각 순으로 반환한다. */
 	List<OccupancyForecastResponse> getForecasts(Long parkingLotId, Instant from, Instant to);
