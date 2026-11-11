@@ -4,6 +4,7 @@ import com.hmc.hmcbe.global.response.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -91,6 +92,13 @@ public class GlobalExceptionHandler {
 		return ResponseEntity.status(CommonErrorCode.METHOD_NOT_ALLOWED.getStatus())
 				.headers(ex.getHeaders())
 				.body(ApiResponse.fail(CommonErrorCode.METHOD_NOT_ALLOWED, message));
+	}
+
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	public ResponseEntity<ApiResponse<Void>> handleDataIntegrity(DataIntegrityViolationException ex, HttpServletRequest request) {
+		log.warn("데이터 제약 충돌 [{} {}]", request.getMethod(), request.getRequestURI(), ex);
+		return ResponseEntity.status(CommonErrorCode.CONFLICT.getStatus())
+				.body(ApiResponse.fail(CommonErrorCode.CONFLICT, CommonErrorCode.CONFLICT.getDefaultMessage()));
 	}
 
 	@ExceptionHandler(Exception.class)
