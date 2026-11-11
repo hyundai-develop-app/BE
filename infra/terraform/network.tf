@@ -99,7 +99,8 @@ resource "aws_vpc_security_group_ingress_rule" "ssh" {
 
 resource "aws_vpc_security_group_egress_rule" "all" {
   security_group_id = aws_security_group.app.id
-  description       = "Allow all outbound (패키지 설치, 이미지 pull, S3, SSM)"
+  # AWS 규칙 설명은 영문·숫자·일부 기호만 허용한다(한글 불가).
+  description       = "Allow all outbound (packages, image pull, S3, SSM)"
   ip_protocol       = "-1"
   cidr_ipv4         = "0.0.0.0/0"
 }

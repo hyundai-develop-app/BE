@@ -47,8 +47,10 @@ resource "aws_instance" "app" {
   iam_instance_profile   = aws_iam_instance_profile.ec2.name
   key_name               = var.key_name
 
-  # Elastic IP를 쓰면 그 주소가 유일한 퍼블릭 IP가 된다. 안 쓰면 자동 할당 IP를 받는다(재시작하면 바뀜).
-  associate_public_ip_address = !var.create_elastic_ip
+  # 항상 true로 둔다. 첫 부팅 스크립트(dnf, 이미지 pull)는 Elastic IP가 붙기 전에 시작되므로
+  # 자동 할당 IP가 없으면 인터넷에 나가지 못해 실패한다. Elastic IP가 붙으면 자동 할당 IP는 해제된다.
+  # (이 값을 바꾸면 인스턴스가 교체되어 DB 데이터가 사라지므로 변수로 빼지 않았다.)
+  associate_public_ip_address = true
 
   # IMDSv2 필수. 컨테이너 안의 앱이 인스턴스 역할 자격증명을 받으려면 홉 제한이 2 이상이어야 한다.
   metadata_options {
@@ -104,5 +106,5 @@ resource "aws_eip" "app" {
 }
 
 locals {
-  app_public_ip = var.create_elastic_ip ? aws_eip.app[0].public_ip : aws_instance.app.public_ip
+  app_public_ip = try(aws_eip.app[0].public_ip, aws_instance.app.public_ip)
 }

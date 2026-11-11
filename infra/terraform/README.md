@@ -21,6 +21,7 @@ HMC-BE의 AWS 인프라를 Terraform으로 관리합니다. 파일 업로드용 
 - **접속은 SSM Session Manager**를 씁니다(SSH 포트를 열지 않음). `terraform output ssm_session_command`로 명령을 확인합니다. AWS CLI와 session-manager-plugin이 필요합니다. SSH가 꼭 필요하면 `key_name`과 `ssh_allowed_cidrs`(본인 IP/32)를 지정합니다. `0.0.0.0/0`은 검증으로 막혀 있습니다.
 - **S3 접근에는 액세스 키가 필요 없습니다.** 인스턴스 역할이 자격증명을 제공하고, 메타데이터 홉 제한을 2로 두어 Docker 컨테이너 안의 앱도 받을 수 있습니다. 따라서 EC2에서는 `AWS_ACCESS_KEY_ID` 등을 설정하지 않습니다.
 - **부트스트랩이 하는 일은 여기까지입니다.** 앱 컨테이너(Dockerfile·이미지 빌드·배포 파이프라인)는 이 저장소에 아직 없어서 포함하지 않았습니다. 인스턴스에는 `/opt/hmc/.env`(DB 비밀번호 자동 생성, `OAUTH2_ISSUER_URI`·`FIREBASE_CREDENTIALS_PATH`·`LOKI_URL`은 비어 있음)와 DB·Redis 컨테이너만 준비됩니다. 부트스트랩 로그는 `/var/log/hmc-bootstrap.log`입니다.
+- `.env`의 `DB_HOST`·`REDIS_HOST`는 `localhost`입니다. DB·Redis가 호스트의 127.0.0.1에만 열려 있으므로, 나중에 앱을 컨테이너로 띄울 때는 `network_mode: host`로 실행하거나 같은 compose 네트워크에 넣고 호스트 이름을 `postgres`/`redis`로 바꿔야 합니다.
 - **Swagger 주소**는 `terraform output swagger_ui_url`입니다. 앱이 떠 있어야 열리며, 현재 코드에는 SecurityFilterChain이 없어 Spring Boot 기본 보안이 적용되므로 `/swagger-ui.html`과 `/api-docs`가 인증 없이 열리지 않을 수 있습니다. 이 부분은 앱 코드에서 따로 설정해야 합니다.
 - 통신은 **HTTP**입니다. 도메인·HTTPS(ALB/ACM 또는 리버스 프록시)는 포함하지 않았습니다.
 
