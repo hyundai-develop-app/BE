@@ -1,5 +1,8 @@
 # 앱 컨테이너
 
+인증 결정 및 issuer 설정 전까지 기능 API는 사용할 수 없다(401). Swagger와 health만 공개한다.
+누락 시 기동 WARN 로그를 남긴다. JVM heap 상한은 컨테이너 메모리의 50%다.
+
 ```sh
 docker build -t hmc-be:local .
 docker run --rm --memory 512m -p 8080:8080 \
@@ -27,3 +30,8 @@ prod는 Swagger(/swagger-ui.html, /swagger-ui/**, /api-docs/**)와
 - /actuator/health: 200, status UP
 - /actuator/info 및 /api/users/me: 401
 - 확인 직후 앱 메모리 약 381MB. 부하 테스트 결과는 아니다.
+
+리뷰 반영 후 검증(2026-11-12):
+- 보안 회귀 테스트 5개 추가: issuer 누락/설정, 유효/무효 JWT, 공개 경로/보호 경로
+- 전체 check 및 수정 Dockerfile 빌드 통과
+- JWT 테스트는 JwtDecoder mock을 사용하며 외부 issuer와의 연결 검증은 포함하지 않는다.
