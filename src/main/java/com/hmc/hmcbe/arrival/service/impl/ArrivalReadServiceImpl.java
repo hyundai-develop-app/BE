@@ -11,9 +11,11 @@ import com.hmc.hmcbe.arrival.service.ArrivalReadService;
 import com.hmc.hmcbe.arrival.service.ParkingRecommendationPolicy;
 import com.hmc.hmcbe.arrival.service.ParkingRecommendationPolicy.Recommendation;
 import com.hmc.hmcbe.global.exception.BusinessException;
+import com.hmc.hmcbe.parkinglot.dto.response.NearbyParkingLotResponse;
 import com.hmc.hmcbe.parkinglot.dto.response.OccupancyForecastResponse;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotReadService;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,7 +49,7 @@ public class ArrivalReadServiceImpl implements ArrivalReadService {
 		return new ArrivalOutlookResponse(
 				ArrivalSessionResponse.from(session),
 				recommendation.destination(),
-				destinationForecasts(session),
+				recommendation.destination() == null ? List.of() : destinationForecasts(session),
 				recommendation.alternatives().size());
 	}
 
@@ -61,10 +63,14 @@ public class ArrivalReadServiceImpl implements ArrivalReadService {
 	}
 
 	private Recommendation recommend(ArrivalSession session) {
-		return recommendationPolicy.recommend(
-				session.getDestinationParkingLotId(),
-				parkingLotReadService.findNearby(session.getDestinationLocation(), SEARCH_RADIUS_METERS,
-						session.getExpectedArrivalAt()));
+		List<NearbyParkingLotResponse> candidates = new ArrayList<>(parkingLotReadService.findNearby(
+				session.getDestinationLocation(), SEARCH_RADIUS_METERS, session.getExpectedArrivalAt()));
+		Long destinationId = session.getDestinationParkingLotId();
+		if (destinationId != null && candidates.stream().noneMatch(c -> c.parkingLot().id().equals(destinationId))) {
+			parkingLotReadService.findNearbyById(
+					destinationId, session.getDestinationLocation(), session.getExpectedArrivalAt()).ifPresent(candidates::add);
+		}
+		return recommendationPolicy.recommend(destinationId, candidates);
 	}
 
 	private List<OccupancyForecastResponse> destinationForecasts(ArrivalSession session) {

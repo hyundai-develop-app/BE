@@ -14,6 +14,7 @@
 | COMMON4031 | 403 | FORBIDDEN | 권한 없음 |
 | COMMON4041 | 404 | NOT_FOUND | 존재하지 않는 API 경로 |
 | COMMON4051 | 405 | METHOD_NOT_ALLOWED | 지원하지 않는 HTTP 메서드 |
+| COMMON4091 | 409 | CONFLICT | 동시 생성 등으로 DB 무결성 제약과 충돌 |
 | COMMON4151 | 415 | UNSUPPORTED_MEDIA_TYPE | 지원하지 않는 Content-Type |
 | COMMON5001 | 500 | INTERNAL_ERROR | 처리되지 않은 서버 오류 |
 

@@ -14,6 +14,9 @@ public interface ParkingLotReadService {
 	/** 반경 안의 주차장을 가까운 순으로, 기준 시각(at)이 속한 30분 예측 구간의 만차율과 함께 반환한다. */
 	List<NearbyParkingLotResponse> findNearby(GeoPoint center, int radiusMeters, Instant at);
 
+	/** ID로 지정한 주차장의 거리와 기준 시각 예측을 반경·결과 수 제한 없이 반환한다. */
+	java.util.Optional<NearbyParkingLotResponse> findNearbyById(Long parkingLotId, GeoPoint center, Instant at);
+
 	/** from 이상 to 이하 구간의 예측 만차율을 시각 순으로 반환한다. */
 	List<OccupancyForecastResponse> getForecasts(Long parkingLotId, Instant from, Instant to);
 }

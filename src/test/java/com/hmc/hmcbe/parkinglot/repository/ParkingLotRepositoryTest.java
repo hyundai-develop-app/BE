@@ -54,6 +54,45 @@ class ParkingLotRepositoryTest {
 	}
 
 	@Test
+	@DisplayName("반경 밖 주차장도 ID로 조회하면 기준 위치와의 미터 거리를 반환한다")
+	void findNearbyByIdOutsideRadius() {
+		GeoPoint center = ParkingLotFixture.YEOUIDO;
+		ParkingLot distant = parkingLotRepository.saveAndFlush(
+				ParkingLotFixture.parkingLot("목적지", offset(center, 0.01)));
+
+		NearbyParkingLotProjection result = parkingLotRepository.findNearbyById(
+				distant.getId(), center.latitude(), center.longitude()).orElseThrow();
+
+		assertThat(result.getId()).isEqualTo(distant.getId());
+		assertThat(result.getDistanceMeters()).isCloseTo(1110, within(5.0));
+		assertThat(parkingLotRepository.findNearby(center.latitude(), center.longitude(), 500, 10)).isEmpty();
+		assertThat(parkingLotRepository.findNearbyById(-1L, center.latitude(), center.longitude())).isEmpty();
+	}
+
+	@Test
+	@DisplayName("geography 반경 검색은 V2 표현식 GiST 인덱스를 사용할 수 있다")
+	void geographySearchHasUsableIndex() {
+		String indexDefinition = (String) entityManager.getEntityManager().createNativeQuery("""
+				SELECT indexdef FROM pg_indexes
+				WHERE schemaname = 'public'
+				AND indexname = 'idx_parking_lots_location_geography'
+				""").getSingleResult();
+		assertThat(indexDefinition).contains("USING gist", "geography");
+		entityManager.getEntityManager().createNativeQuery("SET LOCAL enable_seqscan = off").executeUpdate();
+
+		List<?> plan = entityManager.getEntityManager().createNativeQuery("""
+				EXPLAIN SELECT p.id, ST_Distance(p.location::geography,
+					ST_SetSRID(ST_MakePoint(126.9248, 37.5219), 4326)::geography) AS distance_meters
+				FROM parking_lots p
+				WHERE ST_DWithin(p.location::geography,
+					ST_SetSRID(ST_MakePoint(126.9248, 37.5219), 4326)::geography, 500)
+				ORDER BY distance_meters LIMIT 10
+				""").getResultList();
+
+		assertThat(plan.toString()).contains("idx_parking_lots_location_geography");
+	}
+
+	@Test
 	@DisplayName("위치와 요금(Embeddable)이 그대로 저장·조회된다")
 	void persistLocationAndFee() {
 		// given

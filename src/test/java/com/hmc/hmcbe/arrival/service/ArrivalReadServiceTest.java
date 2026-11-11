@@ -53,6 +53,18 @@ class ArrivalReadServiceTest {
 	}
 
 	@Test
+	@DisplayName("목적지 주차장이 삭제되어도 브리핑과 대기 화면을 조회한다")
+	void missingDestination() {
+		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
+		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA)).willReturn(List.of(publicLot));
+		given(parkingLotReadService.findNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA)).willReturn(Optional.empty());
+
+		assertThat(arrivalReadService.getBriefing(1L, 5L).destinationParkingLot()).isNull();
+		assertThat(arrivalReadService.getOutlook(1L, 5L).destinationParkingLot()).isNull();
+	}
+
+	@Test
 	@DisplayName("대기 화면은 목적지 주차장 도착 예측, 도착 전후 1시간 예측, 더 여유 있는 주차장 수를 준다")
 	void getOutlook() {
 		// given
@@ -103,6 +115,43 @@ class ArrivalReadServiceTest {
 		assertThat(briefing.destinationParkingLot()).isEqualTo(destinationLot);
 		assertThat(briefing.recommended()).isEqualTo(publicLot);
 		assertThat(briefing.alternatives()).containsExactly(publicLot);
+	}
+
+	@Test
+	@DisplayName("목적지 주차장이 500m 밖에 있어도 ID로 조회해 그보다 여유 있는 곳만 추천한다")
+	void compareDestinationOutsideSearchRadius() {
+		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
+		NearbyParkingLotResponse distantDestination = candidate(7L, 1500, 20, "AVAILABLE");
+		NearbyParkingLotResponse better = candidate(4L, 250, 10, "AVAILABLE");
+		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA))
+				.willReturn(List.of(publicLot, better));
+		given(parkingLotReadService.findNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA))
+				.willReturn(Optional.of(distantDestination));
+
+		ParkingBriefingResponse briefing = arrivalReadService.getBriefing(1L, 5L);
+
+		assertThat(briefing.destinationParkingLot()).isEqualTo(distantDestination);
+		assertThat(briefing.alternatives()).containsExactly(better);
+		assertThat(briefing.recommended()).isEqualTo(better);
+	}
+
+	@Test
+	@DisplayName("가까운 10개에서 목적지 주차장이 빠져도 목적지 예측을 대기 화면에 반환한다")
+	void getOutlookWhenDestinationExcludedByLimit() {
+		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
+		List<NearbyParkingLotResponse> nearby = java.util.stream.LongStream.rangeClosed(10, 19)
+				.mapToObj(id -> candidate(id, 100, 40, "AVAILABLE")).toList();
+		NearbyParkingLotResponse omittedDestination = candidate(7L, 400, 20, "AVAILABLE");
+		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA)).willReturn(nearby);
+		given(parkingLotReadService.findNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA))
+				.willReturn(Optional.of(omittedDestination));
+
+		ArrivalOutlookResponse outlook = arrivalReadService.getOutlook(1L, 5L);
+
+		assertThat(outlook.destinationParkingLot()).isEqualTo(omittedDestination);
+		assertThat(outlook.betterAlternativeCount()).isZero();
 	}
 
 	@Test

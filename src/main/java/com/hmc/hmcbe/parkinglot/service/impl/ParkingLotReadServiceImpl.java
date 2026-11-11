@@ -70,6 +70,16 @@ public class ParkingLotReadServiceImpl implements ParkingLotReadService {
 	}
 
 	@Override
+	public java.util.Optional<NearbyParkingLotResponse> findNearbyById(Long parkingLotId, GeoPoint center, Instant at) {
+		return parkingLotRepository.findNearbyById(parkingLotId, center.latitude(), center.longitude())
+				.flatMap(distance -> parkingLotRepository.findById(parkingLotId).map(lot -> {
+					OccupancyForecast forecast = latestForecastsInSlot(List.of(parkingLotId), at).get(parkingLotId);
+					return NearbyParkingLotResponse.of(ParkingLotResponse.from(lot), distance.getDistanceMeters(),
+							forecast == null ? null : OccupancyForecastResponse.from(forecast));
+				}));
+	}
+
+	@Override
 	public List<OccupancyForecastResponse> getForecasts(Long parkingLotId, Instant from, Instant to) {
 		if (from.isAfter(to)) {
 			throw new BusinessException(ParkingLotErrorCode.INVALID_FORECAST_PERIOD, "조회 시작 시각이 끝 시각보다 늦습니다");

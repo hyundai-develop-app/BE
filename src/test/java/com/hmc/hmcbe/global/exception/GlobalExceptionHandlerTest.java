@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -30,6 +31,19 @@ class GlobalExceptionHandlerTest {
 		mockMvc = MockMvcBuilders.standaloneSetup(new StubController())
 				.setControllerAdvice(new GlobalExceptionHandler())
 				.build();
+	}
+
+	@Test
+	@DisplayName("고유 제약 외 DB 오류는 내부 메시지를 숨기고 500을 반환한다")
+	void nonUniqueIntegrityFailure() {
+		for (String state : java.util.List.of("23502", "23503", "23514", "22001")) {
+			var response = new GlobalExceptionHandler().handleDataIntegrity(
+					new DataIntegrityViolationException("private detail", new java.sql.SQLException("detail", state)),
+					new org.springframework.mock.web.MockHttpServletRequest());
+			org.assertj.core.api.Assertions.assertThat(response.getStatusCode().value()).isEqualTo(500);
+			org.assertj.core.api.Assertions.assertThat(response.getBody().error().message())
+					.isEqualTo(CommonErrorCode.INTERNAL_ERROR.getDefaultMessage());
+		}
 	}
 
 	@Test
@@ -113,6 +127,17 @@ class GlobalExceptionHandlerTest {
 	}
 
 	@Test
+	@DisplayName("DB 제약조건 경합이 발생하면 내부 메시지를 숨기고 409 COMMON4091로 응답한다")
+	void dataIntegrityConflict() throws Exception {
+		mockMvc.perform(get("/integrity-conflict"))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.data").doesNotExist())
+				.andExpect(jsonPath("$.error.code").value("COMMON4091"))
+				.andExpect(jsonPath("$.error.message").value(CommonErrorCode.CONFLICT.getDefaultMessage()));
+	}
+
+	@Test
 	@DisplayName("처리되지 않은 예외가 발생하면 500 COMMON5001로 응답하고 내부 메시지를 노출하지 않는다")
 	void unexpected() throws Exception {
 		mockMvc.perform(get("/unexpected"))
@@ -145,6 +170,11 @@ class GlobalExceptionHandlerTest {
 		@GetMapping("/forbidden")
 		void forbidden() {
 			throw new AccessDeniedException("denied");
+		}
+
+		@GetMapping("/integrity-conflict")
+		void integrityConflict() {
+			throw new DataIntegrityViolationException("duplicate key uk_arrival_sessions_user_active user_id=123", new java.sql.SQLException("duplicate", "23505"));
 		}
 
 		@GetMapping("/unexpected")
