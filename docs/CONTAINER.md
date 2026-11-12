@@ -19,6 +19,10 @@ EC2(x86_64)에 보낼 이미지는 linux/amd64로 빌드한다.
 prod는 Swagger(/swagger-ui.html, /swagger-ui/**, /api-docs/**)와
 /actuator/health만 공개한다. issuer가 비어 있으면 인증 기능을 활성화하지 않고
 보호된 요청은 401로 차단한다. issuer를 설정하면 OAuth2 Resource Server로 JWT를 검증한다.
+
+브라우저에서 호출하는 프론트엔드는 `CORS_ALLOWED_ORIGINS`(쉼표 구분)에 출처를 등록해야 한다.
+비어 있으면 교차 출처 요청을 모두 거부한다. 네이티브 앱과 서버 간 호출은 CORS와 무관하다.
+EC2의 /opt/hmc/.env는 첫 부팅 때만 만들어지므로 기존 서버에는 이 변수를 직접 추가한다.
 현재 Firebase/Loki는 설정값만 있고 초기화 코드가 없어 빈 값이 허용된다.
 
 2026-11-11 로컬 검증:
