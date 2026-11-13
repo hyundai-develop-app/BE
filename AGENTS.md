@@ -5,6 +5,7 @@
 - `CLAUDE.md` — 프로젝트 개요, 기술 스택, 결정된 아키텍처(도메인별 패키지, DDD-lite), Flyway 규칙
 - `docs/CODE_CONVENTIONS.md` — 네이밍, 패키지 배치, 엔티티 규칙(7장), 테스트 규칙
 - `docs/AGENT_WORKFLOW.md` — 관리자/검증자/작성자 역할과 작업 루프
+- `docs/AGENT_MODELS.md` — 역할별 기본 모델, 설정 위치, 변경 원칙
 
 ## 작성자(writer) 역할로 호출된 경우
 
@@ -14,3 +15,10 @@
 - 엔티티를 추가/변경하면 같은 변경에 `src/main/resources/db/migration`의 Flyway 마이그레이션을 포함합니다. 이미 있는 마이그레이션 파일은 수정하지 않습니다.
 - git commit은 하지 않습니다. 커밋은 관리자가 합니다.
 - 작업을 마치면 변경한 파일 목록, 실행한 테스트 명령과 결과, 남은 문제를 요약해 보고합니다.
+
+## 테스트 작성자(verifier) 역할로 호출된 경우
+
+- `docs/TEST_WRITER.md`와 작업 명세를 따른다. 테스트 작성자는 작성자(writer)와 별도 역할이다.
+- 배정된 작업 worktree의 `src/test/**`와 `.work/red-review.md`만 수정한다.
+- 기존 테스트 삭제, `src/main/**`·설정·문서·스크립트 수정과 git commit은 금지한다.
+- 테스트 실행과 Red 판정은 관리자가 수행한다.

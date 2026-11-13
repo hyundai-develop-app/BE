@@ -4,12 +4,14 @@
 
 ## 역할과 경계
 
+모델 배정과 설정 위치는 `docs/AGENT_MODELS.md`를 따른다.
+
 | 역할 | 담당 | 수정 가능 범위 |
 |---|---|---|
-| 관리자 | 메인 세션 (Claude 또는 Codex) | 명세·설정·작업 등록·테스트 실행·판정·커밋·통합 |
-| 검증자 | 작업 worktree에서 실행하는 `verifier`, write-tests 모드 | `src/test/**`, `.work` 보고서 |
-| 작성자 | `scripts/run-writer.sh`가 실행하는 Codex | 등록 시 지정한 `src/main/**` 하위 경로만 |
-| 리뷰어 | 작업 worktree의 `verifier`, review 모드 | `.work` 보고서만 |
+| 관리자 | Claude Fable 메인 세션 | 명세·설정·작업 등록·테스트 실행·판정·커밋·통합 |
+| 검증자 | `pipeline.py run-tests`가 실행하는 Codex Sol | `src/test/**`, `.work` 보고서 |
+| 작성자 | `scripts/run-writer.sh`가 실행하는 Codex Sol | 등록 시 지정한 `src/main/**` 하위 경로만 |
+| 리뷰어 | Claude Opus `verifier` 에이전트 | `.work` 보고서만 |
 
 검증자·작성자·리뷰어는 커밋하지 않는다. 모든 커밋은 관리자가 실행하는 `scripts/pipeline.py`가 만든다. 관리자가 인프라를 설정하는 작업은 도메인 작성자 단계와 별개이며 `scripts/**`, `.claude/**`, 문서를 수정할 수 있다.
 
@@ -47,12 +49,17 @@ python3 scripts/pipeline.py register user-entity --workspace '<작업 경로>' \
 
 ### 1. 테스트 작성과 Red 확인
 
-관리자가 검증자를 호출한다. 방법은 둘 중 하나다.
+관리자가 아래 명령으로 테스트 작성자 Codex Sol을 별도 세션에서 실행한다.
 
-- 관리자 세션에서 `verifier` 서브에이전트로 호출: 작업 디렉터리가 관리자 폴더로 고정되므로 작업 worktree의 **절대 경로**를 전달하고 그 경로만 쓰게 한다. 훅은 수정 대상 파일이 속한 worktree의 `.work/role`을 읽어 경계를 적용한다.
-- 작업 worktree에서 별도 Claude 세션을 열어 `verifier` 지침으로 실행: 훅은 그 세션 폴더의 `.work/role`을 적용한다.
+```sh
+python3 scripts/pipeline.py run-tests user-entity
+```
 
-`.claude/agents/verifier.md`의 write-tests 지침과 명세 경로를 전달한다. 검증자는 테스트와 `.work/red-review.md`(실행할 `--tests` 패턴, 예상 실패 원인)를 작성하고 종료한다. 서브에이전트는 실행 도중 관리자에게 테스트 실행을 요청할 수 없으므로, 테스트 오류를 고쳐야 하면 관리자가 로그를 붙여 다시 호출한다. 검증자는 기존 테스트 파일을 삭제할 수 없다(게이트가 거부).
+테스트 작성 지침은 `docs/TEST_WRITER.md`에 있다. 테스트 작성자는 `src/test/**`와
+`.work/red-review.md`에 테스트, 필요한 public API, 실행할 `--tests` 패턴, 예상 실패 원인을 작성한다.
+명령은 모델·추론 강도를 명시하고 종료 후 HEAD, 허용 경로와 기존 파일 삭제 여부를 검사한다.
+실행 실패 시 변경을 보존하며 상태는 `testing`으로 유지한다. 로그를 확인하고 같은 명령으로 재시도할 수 있다.
+모델 실행 성공만으로 Red 판정이나 테스트 커밋을 만들지 않는다.
 
 관리자는 해당 worktree에서 대상 테스트를 실행해 실패 원인이 구현 부재인지 확인한다. 의존성 다운로드·Docker·JDK 오류는 Red가 아니다. 확인한 보고서에 `RED_REASON: missing-implementation`과 실제 명령/실패 원인을 기록한 후 아래 게이트를 실행한다. 게이트는 테스트를 재실행해 실패·경계·파일 불변 여부를 확인하고 테스트 커밋을 만든다.
 
@@ -78,7 +85,7 @@ python3 scripts/pipeline.py recover user-entity --worker-stopped
 
 ### 3. 독립 리뷰와 전체 검증
 
-관리자는 `status user-entity`의 `test_commit`, `snapshot`, 보고서 경로를 리뷰어에게 전달하고 `git diff <test_commit>` 결과도 제공한다. 리뷰어는 동일 작업 worktree에서 명세·테스트·구현을 읽고 `.work/review.md`를 작성한다.
+관리자는 `status user-entity`의 `test_commit`, `snapshot`, 보고서 경로를 리뷰어에게 전달하고 `git diff <test_commit>` 결과도 제공한다. 관리자는 `.claude/agents/verifier.md`의 Claude Opus 리뷰어를 독립 서브에이전트로 호출한다. 작업 worktree의 절대 경로를 전달한다. 리뷰어는 해당 worktree에서 명세·테스트·구현을 읽고 `.work/review.md`를 작성한다.
 
 ```text
 SNAPSHOT: <status에 기록된 snapshot 값>
