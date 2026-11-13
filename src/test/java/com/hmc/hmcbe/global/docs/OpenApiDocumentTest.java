@@ -161,6 +161,56 @@ class OpenApiDocumentTest {
 		assertThat(document.at("/info/title").asText()).isEqualTo("HMC-BE API");
 	}
 
+	@Test
+	@DisplayName("경유지 해제 API를 문서화하면 200 세션 응답과 404·409 오류 예시를 제공한다")
+	void clearWaypointIsDocumented() {
+		// given
+		JsonNode clear = operation("delete", "/api/v1/arrivals/{sessionId}/waypoint");
+
+		// when
+		JsonNode responses = clear.path("responses");
+		List<JsonNode> sessionParameters = new ArrayList<>();
+		clear.path("parameters").forEach(parameter -> {
+			if (parameter.path("name").asText().equals("sessionId")) {
+				sessionParameters.add(parameter);
+			}
+		});
+
+		// then
+		assertThat(clear.path("operationId").asText()).isEqualTo("clearWaypoint");
+		assertThat(clear.path("summary").asText()).isEqualTo("경유 주차장 해제");
+		assertThat(clear.path("description").asText()).contains("되돌리기", "원래 목적지", "경유지가 없어도 성공");
+		assertThat(responses.at("/200/content/application~1json/schema/$ref").asText())
+				.isEqualTo(operation("get", "/api/v1/arrivals/active")
+						.at("/responses/200/content/application~1json/schema/$ref").asText())
+				.startsWith("#/components/schemas/ApiResponse");
+		assertThat(exampleCodes(responses, "404")).containsExactly("ARRIVAL4041");
+		assertThat(exampleCodes(responses, "409")).containsExactly("ARRIVAL4091");
+		assertThat(sessionParameters).hasSize(1);
+		assertThat(sessionParameters.get(0).path("in").asText()).isEqualTo("path");
+		assertThat(sessionParameters.get(0).path("description").asText()).isEqualTo("도착 모드 세션 ID");
+		assertThat(sessionParameters.get(0).path("example").asText()).isEqualTo("10");
+	}
+
+	@Test
+	@DisplayName("도착 모드 문서를 조회하면 700m 검색·목적지 추정·예측 없는 추천 규칙을 설명한다")
+	void arrivalFrontParityRulesAreDocumented() {
+		// given
+		JsonNode schemas = document.at("/components/schemas");
+
+		// when
+		String briefing = operation("get", "/api/v1/arrivals/{sessionId}/briefing").path("description").asText();
+		String count = schemas.at("/ArrivalOutlookResponse/properties/betterAlternativeCount/description").asText();
+		String destination = schemas.at("/StartArrivalRequest/properties/destinationParkingLotId/description").asText();
+		String alternatives = schemas.at("/ParkingBriefingResponse/properties/alternatives/description").asText();
+
+		// then
+		assertThat(briefing).contains("700m").doesNotContain("500m");
+		assertThat(count).contains("700m").doesNotContain("500m");
+		assertThat(destination).contains("700m", "가장 가까운");
+		assertThat(alternatives).contains("예측", "큰", "가까운", "추천");
+	}
+
 	private List<Map.Entry<String, JsonNode>> operations() {
 		List<Map.Entry<String, JsonNode>> operations = new ArrayList<>();
 		document.path("paths").fields().forEachRemaining(path -> path.getValue().fields().forEachRemaining(

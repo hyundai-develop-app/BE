@@ -77,6 +77,11 @@ public class ArrivalSession extends BaseTimeEntity {
 		this.waypointParkingLotId = parkingLotId;
 	}
 
+	public void clearWaypoint() {
+		requireActive();
+		this.waypointParkingLotId = null;
+	}
+
 	public void complete(Instant now) {
 		end(ArrivalStatus.COMPLETED, now);
 	}
