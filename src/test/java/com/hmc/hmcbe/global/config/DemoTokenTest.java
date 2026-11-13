@@ -34,10 +34,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @WebMvcTest(controllers = {DemoTokenController.class, DemoTokenTest.Probe.class})
-@Import({LocalDemoSecurityConfig.class, DemoTokenIssuer.class, ClockConfig.class,
+@Import({ProdSecurityConfig.class, DemoJwtConfig.class, DemoTokenIssuer.class, ClockConfig.class,
 	CurrentUserIdArgumentResolver.class, DemoTokenTest.Probe.class})
 @ActiveProfiles("local")
-@TestPropertySource(properties = "spring.security.oauth2.resourceserver.jwt.issuer-uri=")
+@TestPropertySource(properties = {"spring.security.oauth2.resourceserver.jwt.issuer-uri=",
+	"app.demo-auth.enabled=true"})
 class DemoTokenTest {
 
 	@Autowired
@@ -116,7 +117,7 @@ class DemoTokenTest {
 	@Test
 	@DisplayName("다른 서버 키로 서명한 토큰이면 인증을 거절한다")
 	void otherSigningKeyIsRejected() throws Exception {
-		var config = new LocalDemoSecurityConfig();
+		var config = new DemoJwtConfig();
 		var issuer = new DemoTokenIssuer(config.demoJwtEncoder(config.demoKeyPair()), java.time.Clock.systemUTC());
 		String token = issuer.issue("demo-driver").accessToken();
 		mvc.perform(get("/demo-test/me").header("Authorization", "Bearer " + token))

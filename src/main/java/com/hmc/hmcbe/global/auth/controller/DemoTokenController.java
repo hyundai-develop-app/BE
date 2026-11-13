@@ -7,6 +7,7 @@ import com.hmc.hmcbe.global.auth.dto.response.DemoTokenResponse;
 import com.hmc.hmcbe.global.response.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
@@ -15,7 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@Profile("local & !prod")
+@Profile({"local", "prod"})
+@ConditionalOnProperty(name = "app.demo-auth.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class DemoTokenController implements DemoTokenControllerDocs {
 

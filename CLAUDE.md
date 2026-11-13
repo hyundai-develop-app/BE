@@ -13,7 +13,7 @@
 - PostgreSQL + PostGIS (`postgis/postgis:16-3.4`) — 위치 기반 데이터를 다룰 것으로 보이는 스키마
 - Redis
 - Flyway로 스키마 관리. `spring.jpa.hibernate.ddl-auto: validate`이므로 **Hibernate가 스키마를 생성하지 않습니다** — 모든 스키마 변경은 `src/main/resources/db/migration`에 마이그레이션 파일로 작성해야 합니다. 아직 마이그레이션은 없습니다.
-- OAuth2 Resource Server(JWT) — 인증은 외부 Issuer(`OAUTH2_ISSUER_URI`)에 위임하고, 이 서비스는 토큰 검증만 수행합니다. 운영 로그인/발급 로직은 이 저장소에 없습니다. `local` 전용 데모 JWT 발급은 `docs/DEMO_AUTH.md`를 참고합니다.
+- OAuth2 Resource Server(JWT) — 인증은 외부 Issuer(`OAUTH2_ISSUER_URI`)에 위임하고, 이 서비스는 토큰 검증만 수행합니다. 운영 로그인/발급 로직은 이 저장소에 없습니다. `DEMO_AUTH_ENABLED=true`로 켜는 데모 JWT 발급은 `docs/DEMO_AUTH.md`를 참고합니다.
 - AWS S3 (파일 저장), Firebase Admin SDK (FCM 푸시로 추정), springdoc-openapi(Swagger UI: `/swagger-ui.html`, API 문서: `/api-docs`), Micrometer + Prometheus + Loki(로깅/모니터링)
 - `open-in-view: false` — 트랜잭션 밖에서 지연 로딩 불가. `docs/CODE_CONVENTIONS.md` 2.4 참고.
 
@@ -59,7 +59,7 @@
 
 ### 환경 프로필 / 스키마 관리
 
-- Spring Profile은 `local`, `test`, `prod`를 사용합니다. 현재 설정은 `application.yml`에 있고 개발 Controller와 보안 설정은 `@Profile("local")`로 제한합니다. 프로필별 설정 값이 필요해지면 `application-{profile}.yml`에 차이만 추가합니다.
+- Spring Profile은 `local`, `test`, `prod`를 사용합니다. 현재 설정은 `application.yml`에 있습니다. 데모 JWT는 `local`/`prod` 프로필에서 `DEMO_AUTH_ENABLED=true`일 때만 활성화합니다. 보안 필터는 두 프로필에서 공유합니다. 프로필별 설정 값이 필요해지면 `application-{profile}.yml`에 차이만 추가합니다.
 - Flyway 마이그레이션은 단순 버전 증가(`V1__xxx.sql`, `V2__xxx.sql`, ...) 방식으로 관리합니다. **이미 적용된 마이그레이션 파일은 수정하지 않고, 항상 새 버전 파일을 추가**합니다 (수정하면 체크섬이 깨져 배포 환경에서 Flyway가 실패합니다).
 
 ### 공통 API 응답 포맷

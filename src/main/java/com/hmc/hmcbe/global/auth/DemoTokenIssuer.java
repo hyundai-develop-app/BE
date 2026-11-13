@@ -5,6 +5,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -12,11 +13,12 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Component;
 
 @Component
-@Profile("local & !prod")
+@Profile({"local", "prod"})
+@ConditionalOnProperty(name = "app.demo-auth.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class DemoTokenIssuer {
 
-	public static final String ISSUER = "hmc-local-demo";
+	public static final String ISSUER = "hmc-demo";
 
 	private final JwtEncoder jwtEncoder;
 	private final Clock clock;
