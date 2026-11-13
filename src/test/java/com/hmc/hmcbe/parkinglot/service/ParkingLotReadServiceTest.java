@@ -13,6 +13,8 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import com.hmc.hmcbe.global.exception.BusinessException;
 import com.hmc.hmcbe.parkinglot.dto.response.NearbyParkingLotResponse;
 import com.hmc.hmcbe.parkinglot.dto.response.OccupancyForecastResponse;
+import com.hmc.hmcbe.parkinglot.dto.response.ParkingLotResponse;
+import com.hmc.hmcbe.parkinglot.entity.ParkingLot;
 import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
 import com.hmc.hmcbe.parkinglot.fixture.ParkingLotFixture;
 import com.hmc.hmcbe.parkinglot.repository.NearbyParkingLotProjection;
@@ -25,6 +27,8 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -47,7 +51,7 @@ class ParkingLotReadServiceTest {
 	@DisplayName("주변 주차장을 거리 순으로, 기준 시각 슬롯의 가장 늦은 예측과 함께 반환한다")
 	void findNearby() {
 		// given
-		given(parkingLotRepository.findNearby(anyDouble(), anyDouble(), anyDouble(), anyInt()))
+		given(parkingLotRepository.findNearby(anyDouble(), anyDouble(), anyDouble(), anyInt(), eq(false)))
 				.willReturn(List.of(projection(2L, 120.4), projection(1L, 300.6)));
 		given(parkingLotRepository.findAllById(List.of(2L, 1L)))
 				.willReturn(List.of(ParkingLotFixture.parkingLotWithId(1L), ParkingLotFixture.parkingLotWithId(2L)));
@@ -102,10 +106,91 @@ class ParkingLotReadServiceTest {
 	@Test
 	@DisplayName("주변에 주차장이 없으면 예측을 조회하지 않고 빈 목록을 반환한다")
 	void findNearbyEmpty() {
-		given(parkingLotRepository.findNearby(anyDouble(), anyDouble(), anyDouble(), anyInt())).willReturn(List.of());
+		given(parkingLotRepository.findNearby(anyDouble(), anyDouble(), anyDouble(), anyInt(), eq(false)))
+				.willReturn(List.of());
 
 		assertThat(parkingLotReadService.findNearby(ParkingLotFixture.YEOUIDO, 500, AT)).isEmpty();
 		verifyNoInteractions(occupancyForecastRepository);
+	}
+
+	@ParameterizedTest
+	@CsvSource({
+		"2026-11-13T03:00:00Z, false",
+		"2026-11-14T03:00:00Z, true",
+		"2026-11-15T03:00:00Z, true",
+		"2026-11-13T14:59:59.999999999Z, false",
+		"2026-11-13T15:00:00Z, true",
+		"2026-11-13T15:30:00Z, true",
+		"2026-11-15T14:59:59.999999999Z, true",
+		"2026-11-15T15:00:00Z, false"
+	})
+	@DisplayName("KST 기준 토·일 여부로 주변 검색하면 주말 전용 포함 조건과 최대 10개 제한을 전달한다")
+	void findNearbyUsesSeoulDayOfWeek(String timestamp, boolean includeWeekendOnly) {
+		// given
+		Instant at = Instant.parse(timestamp);
+		List<Long> ids = includeWeekendOnly ? List.of(1L, 2L) : List.of(2L);
+		List<NearbyParkingLotProjection> nearby = includeWeekendOnly
+				? List.of(projection(1L, 100), projection(2L, 200)) : List.of(projection(2L, 200));
+		ParkingLot regular = ParkingLotFixture.parkingLotWithId(2L);
+		List<ParkingLot> lots = includeWeekendOnly
+				? List.of(ParkingLotFixture.parkingLotWithId(1L, "서울 강남구", "주말 무료", true), regular)
+				: List.of(regular);
+		given(parkingLotRepository.findNearby(ParkingLotFixture.YEOUIDO.latitude(),
+				ParkingLotFixture.YEOUIDO.longitude(), 500, 10, includeWeekendOnly)).willReturn(nearby);
+		given(parkingLotRepository.findAllById(ids)).willReturn(lots);
+
+		// when
+		List<NearbyParkingLotResponse> result = parkingLotReadService.findNearby(ParkingLotFixture.YEOUIDO, 500, at);
+
+		// then
+		verify(parkingLotRepository).findNearby(ParkingLotFixture.YEOUIDO.latitude(),
+				ParkingLotFixture.YEOUIDO.longitude(), 500, 10, includeWeekendOnly);
+		assertThat(result).extracting(r -> r.parkingLot().id()).containsExactlyElementsOf(ids);
+		assertThat(result).extracting(r -> r.parkingLot().weekendOnly())
+				.containsExactlyElementsOf(includeWeekendOnly ? List.of(true, false) : List.of(false));
+		if (includeWeekendOnly) {
+			assertThat(result.get(0).parkingLot().address()).isEqualTo("서울 강남구");
+			assertThat(result.get(0).parkingLot().feeDescription()).isEqualTo("주말 무료");
+		}
+	}
+
+	@Test
+	@DisplayName("평일에 주말 전용 주차장을 ID로 지정하면 거리와 주차장 정보를 반환한다")
+	void findWeekendOnlyByIdOnWeekday() {
+		// given
+		Instant friday = Instant.parse("2026-11-13T03:00:00Z");
+		given(parkingLotRepository.findNearbyById(1L, ParkingLotFixture.YEOUIDO.latitude(),
+				ParkingLotFixture.YEOUIDO.longitude())).willReturn(Optional.of(projection(1L, 200)));
+		given(parkingLotRepository.findById(1L)).willReturn(Optional.of(
+				ParkingLotFixture.parkingLotWithId(1L, "서울 강남구", "주말 무료", true)));
+
+		// when
+		NearbyParkingLotResponse result = parkingLotReadService
+				.findNearbyById(1L, ParkingLotFixture.YEOUIDO, friday).orElseThrow();
+
+		// then
+		assertThat(result.parkingLot().id()).isEqualTo(1L);
+		assertThat(result.parkingLot().weekendOnly()).isTrue();
+		assertThat(result.parkingLot().address()).isEqualTo("서울 강남구");
+		assertThat(result.parkingLot().feeDescription()).isEqualTo("주말 무료");
+		assertThat(result.distanceMeters()).isEqualTo(200);
+	}
+
+	@Test
+	@DisplayName("주말 전용 주차장을 단건 조회하면 요일과 무관하게 주차장 정보를 반환한다")
+	void getWeekendOnlyParkingLot() {
+		// given
+		given(parkingLotRepository.findById(1L)).willReturn(Optional.of(
+				ParkingLotFixture.parkingLotWithId(1L, "서울 강남구", "주말 무료", true)));
+
+		// when
+		ParkingLotResponse result = parkingLotReadService.getParkingLot(1L);
+
+		// then
+		assertThat(result.id()).isEqualTo(1L);
+		assertThat(result.address()).isEqualTo("서울 강남구");
+		assertThat(result.feeDescription()).isEqualTo("주말 무료");
+		assertThat(result.weekendOnly()).isTrue();
 	}
 
 	@Test

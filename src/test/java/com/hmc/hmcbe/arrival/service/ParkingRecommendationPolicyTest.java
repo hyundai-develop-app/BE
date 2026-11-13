@@ -70,7 +70,7 @@ class ParkingRecommendationPolicyTest {
 	}
 
 	private static NearbyParkingLotResponse candidate(Long id, int distance, Integer rate, String level) {
-		ParkingLotResponse lot = new ParkingLotResponse(id, "주차장" + id, 37.5, 126.9, true, null, 120, 10, 1000, 100);
+		ParkingLotResponse lot = new ParkingLotResponse(id, "주차장" + id, 37.5, 126.9, true, null, 120, 10, 1000, 100, null, null, false);
 		OccupancyForecastResponse forecast = rate == null
 				? null
 				: new OccupancyForecastResponse(Instant.parse("2026-11-09T05:00:00Z"), rate, level);

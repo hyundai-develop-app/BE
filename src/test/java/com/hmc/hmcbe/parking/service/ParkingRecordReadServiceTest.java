@@ -59,7 +59,7 @@ class ParkingRecordReadServiceTest {
 		given(parkingRecordRepository.findByUserIdAndExitedAtIsNull(1L))
 				.willReturn(Optional.of(ParkingRecordFixture.activeRecord(1L, 7L)));
 		given(parkingLotReadService.getParkingLot(7L)).willReturn(
-				new ParkingLotResponse(7L, "여의도 공영주차장", 37.5, 126.9, true, null, 120, 10, 1000, 300));
+				new ParkingLotResponse(7L, "여의도 공영주차장", 37.5, 126.9, true, null, 120, 10, 1000, 300, null, null, false));
 		given(savedPlaceReadService.getSavedPlaces(1L)).willReturn(places);
 
 		// when

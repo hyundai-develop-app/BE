@@ -16,7 +16,13 @@ public final class ParkingLotFixture {
 	}
 
 	public static ParkingLot parkingLot(String name, GeoPoint location) {
-		return ParkingLot.create(name, location, true, "건물 뒷편 골목", 120, new ParkingFee(10, 1000), 300);
+		return parkingLot(name, location, null, null, false);
+	}
+
+	public static ParkingLot parkingLot(String name, GeoPoint location, String address,
+			String feeDescription, boolean weekendOnly) {
+		return ParkingLot.create(name, location, true, "건물 뒷편 골목", 120, new ParkingFee(10, 1000), 300,
+				address, feeDescription, weekendOnly);
 	}
 
 	public static ParkingLot parkingLot() {
@@ -25,6 +31,12 @@ public final class ParkingLotFixture {
 
 	public static ParkingLot parkingLotWithId(Long id) {
 		ParkingLot lot = parkingLot();
+		ReflectionTestUtils.setField(lot, "id", id);
+		return lot;
+	}
+
+	public static ParkingLot parkingLotWithId(Long id, String address, String feeDescription, boolean weekendOnly) {
+		ParkingLot lot = parkingLot("여의도 공영주차장", YEOUIDO, address, feeDescription, weekendOnly);
 		ReflectionTestUtils.setField(lot, "id", id);
 		return lot;
 	}

@@ -1,0 +1,3 @@
+ALTER TABLE parking_lots ADD COLUMN address VARCHAR(255);
+ALTER TABLE parking_lots ADD COLUMN fee_description VARCHAR(255);
+ALTER TABLE parking_lots ADD COLUMN weekend_only BOOLEAN NOT NULL DEFAULT FALSE;

@@ -176,7 +176,7 @@ class ArrivalReadServiceTest {
 	}
 
 	private static NearbyParkingLotResponse candidate(Long id, int distance, int rate, String level) {
-		ParkingLotResponse lot = new ParkingLotResponse(id, "주차장" + id, 37.5, 126.9, true, null, 120, 10, 1000, 100);
+		ParkingLotResponse lot = new ParkingLotResponse(id, "주차장" + id, 37.5, 126.9, true, null, 120, 10, 1000, 100, null, null, false);
 		return new NearbyParkingLotResponse(lot, distance, new OccupancyForecastResponse(ETA, rate, level));
 	}
 }
