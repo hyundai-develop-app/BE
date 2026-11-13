@@ -15,7 +15,8 @@ import org.springframework.http.ResponseEntity;
 public interface ParkingRecordControllerDocs {
 
 	@Operation(summary = "P단 주차 기록",
-			description = "기어 P 변속 시 GPS 위치를 저장한다. 주차 시각은 서버 현재 시각이며, 출차하지 않은 이전 기록은 출차 처리한다.")
+			description = "기어 P 변속 시 GPS 위치를 저장한다. 주차 시각은 서버 현재 시각이며, 출차하지 않은 이전 기록은 출차 처리한다.\n"
+					+ "parkingLotId를 보내지 않으면 주차 위치 300m 안 가장 가까운 주차장으로 기록한다.")
 	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "기록됨. data는 새 주차 기록")
 	@ApiErrorCodes({"PARKING4001", "PARKINGLOT4041"})
 	ResponseEntity<ApiResponse<ParkingRecordResponse>> park(Long userId, ParkRequest request);

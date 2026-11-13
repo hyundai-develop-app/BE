@@ -152,6 +152,35 @@ class OpenApiDocumentTest {
 	}
 
 	@Test
+	@DisplayName("P단 주차 API를 문서화하면 주차장 ID 생략 시 GPS 300m 안 가장 가까운 주차장 추정을 안내한다")
+	void parkingLotMatchingIsDocumented() {
+		// given
+		JsonNode parkingLotId = document.at("/components/schemas/ParkRequest/properties/parkingLotId");
+		JsonNode park = operation("post", "/api/v1/parking-records");
+
+		// when & then
+		assertThat(parkingLotId.path("description").asText())
+			.contains("보내지 않으면 주차 위치 300m 안 가장 가까운 주차장으로 기록한다");
+		assertThat(park.path("description").asText()).contains("300m", "가장 가까운");
+	}
+
+	@Test
+	@DisplayName("주차 요약을 문서화하면 주소·요금 문구의 설명과 예시를 제공한다")
+	void parkingSummaryFrontFieldsAreDocumented() {
+		// given
+		JsonNode properties = document.at("/components/schemas/ParkingSummaryResponse/properties");
+
+		// when & then
+		assertThat(properties.path("parkingLotAddress").path("description").asText())
+			.isEqualTo("주차장 주소. 주차장을 모르거나 주소가 없으면 null");
+		assertThat(properties.path("parkingLotAddress").path("example").asText())
+			.isEqualTo("서울 강남구 영동대로 513 지하");
+		assertThat(properties.path("feeDescription").path("description").asText())
+			.isEqualTo("주차장 요금 안내 문구(앱이 그대로 읽어 준다). 모르면 null");
+		assertThat(properties.path("feeDescription").path("example").asText()).isEqualTo("10분 800원");
+	}
+
+	@Test
 	@DisplayName("OpenAPI 문서를 build/openapi/openapi.json에 저장한다")
 	void exportDocument() throws Exception {
 		Files.createDirectories(EXPORT_PATH.getParent());

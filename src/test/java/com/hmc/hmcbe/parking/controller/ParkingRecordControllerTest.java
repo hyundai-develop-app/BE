@@ -2,6 +2,8 @@ package com.hmc.hmcbe.parking.controller;
 
 import static com.hmc.hmcbe.global.auth.AuthFixture.USER_ID;
 import static com.hmc.hmcbe.global.auth.AuthFixture.authenticated;
+import static org.hamcrest.Matchers.hasKey;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
@@ -70,6 +72,22 @@ class ParkingRecordControllerTest {
 	}
 
 	@Test
+	@DisplayName("주차장 ID를 생략하면 GPS 요청을 전달하고 추정된 주차장 ID를 반환한다")
+	void parkWithoutParkingLotId() throws Exception {
+		// given
+		ParkRequest request = new ParkRequest(37.5262, 126.929, null);
+		given(parkingRecordWriteService.park(USER_ID, request)).willReturn(record(null));
+
+		// when & then
+		mockMvc.perform(post("/api/v1/parking-records").with(authenticated())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"latitude\":37.5262,\"longitude\":126.929}"))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.data.parkingLotId").value(7));
+		verify(parkingRecordWriteService).park(USER_ID, request);
+	}
+
+	@Test
 	@DisplayName("위치가 없으면 400 INVALID_REQUEST")
 	void parkWithoutLocation() throws Exception {
 		mockMvc.perform(post("/api/v1/parking-records").with(authenticated())
@@ -108,16 +126,39 @@ class ParkingRecordControllerTest {
 	@Test
 	@DisplayName("다음 시동 요약을 조회한다")
 	void getSummary() throws Exception {
+		// given
 		given(parkingRecordReadService.getSummary(USER_ID)).willReturn(new ParkingSummaryResponse(
-				record("지하 2층 C구역"), "여의도 공영주차장", 100, 120, 20L,
+				record("지하 2층 C구역"), "여의도 공영주차장", "서울 강남구 영동대로 513 지하", "10분 800원", 100, 120, 20L,
 				List.of(new SavedPlaceResponse(1L, "집", 37.49, 127.02))));
 
+		// when & then
 		mockMvc.perform(get("/api/v1/parking-records/active/summary").with(authenticated()))
 				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data.parkingLotName").value("여의도 공영주차장"))
+				.andExpect(jsonPath("$.data.parkingLotAddress").value("서울 강남구 영동대로 513 지하"))
+				.andExpect(jsonPath("$.data.feeDescription").value("10분 800원"))
 				.andExpect(jsonPath("$.data.elapsedMinutes").value(100))
 				.andExpect(jsonPath("$.data.freeMinutes").value(120))
 				.andExpect(jsonPath("$.data.remainingFreeMinutes").value(20))
 				.andExpect(jsonPath("$.data.quickDestinations[0].name").value("집"));
+	}
+
+	@Test
+	@DisplayName("주차장을 모르면 요약 JSON에 주소와 요금 문구를 null로 포함한다")
+	void getSummaryWithoutParkingLot() throws Exception {
+		// given
+		ParkingRecordResponse record = new ParkingRecordResponse(3L, null, 37.5262, 126.929, PARKED_AT, null, null);
+		given(parkingRecordReadService.getSummary(USER_ID)).willReturn(new ParkingSummaryResponse(
+				record, null, null, null, 100, null, null, List.of()));
+
+		// when & then
+		mockMvc.perform(get("/api/v1/parking-records/active/summary").with(authenticated()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.data", hasKey("parkingLotAddress")))
+				.andExpect(jsonPath("$.data.parkingLotAddress").value(nullValue()))
+				.andExpect(jsonPath("$.data", hasKey("feeDescription")))
+				.andExpect(jsonPath("$.data.feeDescription").value(nullValue()))
+				.andExpect(jsonPath("$.data.elapsedMinutes").value(100));
 	}
 
 	@Test
