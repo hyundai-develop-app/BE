@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Manager-owned task registry and gates for isolated Git worktrees."""
 import argparse
+import unicodedata
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import fcntl
@@ -15,6 +16,10 @@ import sys
 sys.dont_write_bytecode = True
 
 from role_boundary import check, git
+
+
+def nfc(path):
+    return unicodedata.normalize('NFC', str(path))
 
 
 def sha(root):
@@ -99,9 +104,11 @@ def register(args, root, registry):
     if not re.fullmatch(r'[a-z0-9][a-z0-9-]*', args.task):
         raise ValueError('작업 ID는 소문자, 숫자, 하이픈만 사용합니다.')
     workspace = Path(args.workspace).resolve()
-    if workspace == root or Path(git(workspace, 'rev-parse', '--show-toplevel').decode().strip()).resolve() != workspace:
+    toplevel = Path(git(workspace, 'rev-parse', '--show-toplevel').decode().strip()).resolve()
+    if nfc(workspace) == nfc(root) or nfc(toplevel) != nfc(workspace):
         raise ValueError('관리자와 다른 독립 worktree 루트를 지정하세요.')
-    common = lambda p: Path(git(p, 'rev-parse', '--path-format=absolute', '--git-common-dir').decode().strip()).resolve()
+    # macOS git은 한글 경로를 NFD로 돌려줄 수 있어 NFC로 맞춰 비교한다.
+    common = lambda p: nfc(Path(git(p, 'rev-parse', '--path-format=absolute', '--git-common-dir').decode().strip()).resolve())
     if common(root) != common(workspace):
         raise ValueError('같은 저장소의 worktree만 등록할 수 있습니다.')
     if not clean(workspace) or sha(root) != sha(workspace):
@@ -124,7 +131,7 @@ def register(args, root, registry):
         raise ValueError('이미 등록된 작업 또는 작업 공간입니다.')
     for other in registry.glob('*.json'):
         data = json.loads(other.read_text())
-        if data['workspace'] == str(workspace):
+        if nfc(data['workspace']) == nfc(workspace):
             raise ValueError('이미 다른 작업에 배정된 worktree입니다.')
         if data['status'] == 'integrated':
             continue
