@@ -1,17 +1,20 @@
 package com.hmc.hmcbe.global.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hmc.hmcbe.global.auth.DemoTokenIssuer;
 import com.hmc.hmcbe.global.exception.CommonErrorCode;
 import com.hmc.hmcbe.global.response.ApiResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -26,13 +29,15 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Slf4j
 @Configuration
-@Profile("prod")
+@Profile({"local", "prod"})
 public class ProdSecurityConfig {
 
 	@Bean
 	SecurityFilterChain prodSecurityFilterChain(HttpSecurity http,
-		@Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:}") String issuerUri, ObjectMapper objectMapper)
+		@Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:}") String issuerUri,
+		ObjectProvider<DemoTokenIssuer> demoTokenIssuer, ObjectMapper objectMapper)
 		throws Exception {
+		boolean demoAuthEnabled = demoTokenIssuer.getIfAvailable() != null;
 		AuthenticationEntryPoint entryPoint = (request, response, exception) ->
 			writeError(response, objectMapper, CommonErrorCode.UNAUTHORIZED);
 		AccessDeniedHandler deniedHandler = (request, response, exception) ->
@@ -40,13 +45,18 @@ public class ProdSecurityConfig {
 		http.csrf(csrf -> csrf.disable())
 			.cors(Customizer.withDefaults())
 			.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-			.authorizeHttpRequests(auth -> auth
+			.authorizeHttpRequests(auth -> {
+				if (demoAuthEnabled) {
+					auth.requestMatchers(HttpMethod.POST, "/api/v1/demo/token").permitAll();
+				}
+				auth
 				.requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/api-docs", "/api-docs/**",
 					"/actuator/health").permitAll()
-				.anyRequest().authenticated())
+				.anyRequest().authenticated();
+			})
 			.exceptionHandling(exceptions -> exceptions
 				.authenticationEntryPoint(entryPoint).accessDeniedHandler(deniedHandler));
-		if (StringUtils.hasText(issuerUri)) {
+		if (demoAuthEnabled || StringUtils.hasText(issuerUri)) {
 			http.oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults())
 				.authenticationEntryPoint(entryPoint).accessDeniedHandler(deniedHandler));
 		} else {

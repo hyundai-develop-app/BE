@@ -109,6 +109,10 @@
 
 ## 3. 기타 반복되는 구조적 관례
 
+데모 JWT 발급·서명 키·검증 빈은 `local`/`prod` 프로필에서
+`app.demo-auth.enabled=true`일 때만 등록합니다. 기본값은 false이고, 비활성화 시 외부 Issuer를 사용합니다.
+보안 필터와 CORS는 `ProdSecurityConfig`를 공유합니다 (`docs/DEMO_AUTH.md`).
+
 기본 저장·조회 구현의 공통 엔티티는 `global.entity.BaseCreatedEntity`입니다. ID는 `Long`/IDENTITY,
 생성 시각은 `Instant`/`timestamptz`로 저장 시 자동 설정합니다. 새 테이블은 복수형 snake_case를 쓰고,
 Aggregate 간 Java 참조는 `Long` ID, DB 참조는 FK를 사용합니다. 아래 참고 프로젝트의 UUID 예시는
