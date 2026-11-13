@@ -20,19 +20,25 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class ParkingRecordWriteServiceImpl implements ParkingRecordWriteService {
 
+	private static final int PARKING_LOT_MATCH_RADIUS_METERS = 300;
+
 	private final ParkingRecordRepository parkingRecordRepository;
 	private final ParkingLotReadService parkingLotReadService;
 	private final Clock clock;
 
 	@Override
 	public ParkingRecordResponse park(Long userId, ParkRequest request) {
-		if (request.parkingLotId() != null) {
-			parkingLotReadService.getParkingLot(request.parkingLotId());
-		}
 		Instant now = Instant.now(clock);
+		GeoPoint location = new GeoPoint(request.latitude(), request.longitude());
+		Long parkingLotId = request.parkingLotId();
+		if (parkingLotId != null) {
+			parkingLotReadService.getParkingLot(parkingLotId);
+		} else {
+			parkingLotId = parkingLotReadService.findNearby(location, PARKING_LOT_MATCH_RADIUS_METERS, now)
+					.stream().findFirst().map(nearby -> nearby.parkingLot().id()).orElse(null);
+		}
 		exitActiveRecord(userId, now);
-		ParkingRecord record = ParkingRecord.record(userId, request.parkingLotId(),
-				new GeoPoint(request.latitude(), request.longitude()), now);
+		ParkingRecord record = ParkingRecord.record(userId, parkingLotId, location, now);
 		return ParkingRecordResponse.from(parkingRecordRepository.save(record));
 	}
 
