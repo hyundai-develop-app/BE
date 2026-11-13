@@ -100,9 +100,24 @@ public record Utterance(String text, UtteranceSource source) {}   // source: AUD
 | 해석기 | 입력 → 출력 | 규칙 기반 기본 구현 |
 |---|---|---|
 | `BriefingReplyInterpreter` | 텍스트 → `ReplyIntent { ACCEPT, DECLINE, UNKNOWN }` | 문장부호를 제거하고 공백으로 단어를 나눈 뒤 키워드와 맞춘다. ACCEPT: 응, 어, 네, 예, 그래, 좋아, 가자, 그쪽, 거기로, 오케이, ok. DECLINE: 아니, 아뇨, 됐어, 괜찮아, 싫어, 원래대로. 한 글자 키워드(응·어·네·예)는 발화 전체이거나 첫 단어일 때만 인정한다. 두 글자 이상은 단어 안에 포함되면 인정한다. 부정 키워드가 있으면 DECLINE이 우선이다("아니 괜찮아" → DECLINE, "응 아니" → DECLINE). 둘 다 없으면 UNKNOWN |
-| `ParkingSpotInterpreter` | 텍스트 → `Optional<ParkingSpot(floor, zone)>` | 층: `지하\s*(\d+)\s*층`, `B\s*(\d+)`, `(\d+)\s*층` → `B2`/`3F` 형식. 구역: `([A-Za-z가-힣])\s*구역` 또는 알파벳 한 글자. 한글 알파벳 발음(에이, 비, 씨, 디, 이, 에프 …)은 영문으로 바꾼다. 층과 구역 중 **하나라도** 나오면 성공 |
+| `ParkingSpotInterpreter` | 텍스트 → `Optional<ParkingSpot(floor, zone)>` | 아래 "층·구역 규칙". 층과 구역 중 **하나라도** 나오면 성공 |
 
-- `ParkingSpot.toMemo()`: 사람이 읽는 메모를 만든다. `B2`+`C` → `"지하 2층 C구역"`, `3F` → `"3층"`. 이 값을 기존 `spot_memo`에 저장한다.
+**층·구역 규칙(`RuleBasedParkingSpotInterpreter`)**
+
+구역은 "C구역"처럼 영문 한 글자만 있는 것이 아니라 "36구역", "C3구역"처럼 숫자가 들어가는 경우도 많다(피그마 푸시 목업 참고).
+숫자는 층과 헷갈리므로 **구역을 먼저 떼어 낸 뒤** 남은 문장에서 층을 찾는다.
+
+1. 정규화: 문장부호를 지우고 영문을 대문자로 바꾼다.
+2. 구역 추출: `(<영문 한 글자 | 한글 알파벳 발음>)?\s*-?\s*(\d{1,3})?\s*번?\s*구역`. 앞부분(글자)과 숫자 중 **하나 이상** 있어야 한다.
+   - 한글 알파벳 발음(에이, 비, 씨, 디, 이, 에프, 지, 에이치 …)은 이 위치에서만 영문으로 바꾼다. "이"처럼 일반 단어와 겹치는 발음을 문장 전체에서 바꾸지 않기 위해서다. 발음은 긴 것부터 맞춘다(에이치 → 에이 → 이).
+   - 공백과 `-`를 지워 `zone`을 만든다. 예: `36구역` → `36`, `36번 구역` → `36`, `C3구역`·`씨 3 구역`·`C-3 구역` → `C3`, `에이 구역` → `A`.
+   - 찾은 부분은 문장에서 지운다. 그래서 "지하 1층 36구역"의 36이 층으로 잡히지 않는다.
+3. 층 추출(남은 문장): `지하\s*(\d+)\s*층` → `B{n}`, `B\s*(\d+)\s*층?` → `B{n}`, `(\d+)\s*층` → `{n}F`. 일반 숫자는 `층`이 붙어야만 층으로 본다.
+4. "구역"을 말하지 않은 경우: 층을 뺀 나머지에 **영문 한 글자**만 단독으로 있으면 구역으로 본다("지하 2층 C" → `B2`+`C`).
+   숫자만 단독으로 있으면 구역으로 보지 않는다("지하 1층 36" → `B1`만). 층 번호, 기둥 번호와 구별할 수 없기 때문이다. IVI는 "지하 1층"을 보여 주고 사용자가 다시 말해 고칠 수 있다.
+5. 숫자는 아라비아 숫자만 인식한다. "삼십육 구역" 같은 한글 수사는 STT가 숫자로 바꿔 준다고 보고 처리하지 않는다(9장 미결 사항).
+
+- `ParkingSpot.toMemo()`: 사람이 읽는 메모를 만든다. `B2`+`C` → `"지하 2층 C구역"`, `B1`+`36` → `"지하 1층 36구역"`, `3F` → `"3층"`, 구역만 `C3` → `"C3구역"`. 이 값을 기존 `spot_memo`에 저장한다.
   층·구역용 컬럼은 새로 만들지 않는다. 해석 결과는 응답으로만 내려준다.
 - 해석에 실패해도 오류가 아니다. HTTP 200에 `understood: false`를 담아 보내고 상태는 바꾸지 않는다. IVI가 다시 묻거나 카드 탭으로 대신한다.
 
@@ -161,11 +176,17 @@ public record PushMessage(String token, String title, String body, Map<String, S
 
 ### 4.2 전송 시점
 
-| 이벤트(parking 도메인, 과거형) | 발행 위치 | 푸시 내용 |
+| 이벤트(parking 도메인, 과거형) | 발행 위치 | 제목 / 본문 |
 |---|---|---|
-| `ParkingRecordedEvent(recordId, userId)` | 주차 기록 생성 | "주차 위치를 저장했어요" / "{주차장 이름 또는 '현재 위치'} · {HH:mm} 주차" |
-| `ParkingSpotUpdatedEvent(recordId, userId)` | `spot_memo` 저장(음성·텍스트 모두) | "주차 위치를 저장했어요" / "{주차장 이름} · {spot_memo}" |
+| `ParkingRecordedEvent(recordId, userId)` | 주차 기록 생성 | "마중" / "{주차장 이름 또는 '현재 위치'}에 주차를 완료했어요!" |
+| `ParkingSpotUpdatedEvent(recordId, userId)` | `spot_memo` 저장(음성·텍스트 모두) | "마중" / "{spot_memo}에 주차를 완료했어요!" |
 
+- 문구는 피그마 푸시 목업(`그냥 작업실` 페이지 › `4.1.1_푸쉬알림`, node `84:7036`)을 따른다. 목업은 제목 자리에 앱 이름 `마중`,
+  본문에 `지하 2층 C구역에 주차를 완료했어요!`를 보여 준다. 예시:
+  - 주차 직후: "여의도 공영주차장에 주차를 완료했어요!" (주차장 매칭이 없으면 "현재 위치에 주차를 완료했어요!")
+  - 층·구역 저장 후: "지하 2층 C구역에 주차를 완료했어요!", "지하 1층 36구역에 주차를 완료했어요!"
+- 제목·본문 형식은 리스너 옆 한 곳(`parking/event/ParkingPushMessages`)에 상수로 모아 두고, 문구가 바뀌면 그곳만 고친다.
+- 텍스트 경로(`PUT /spot-memo`)로 사람이 직접 적은 메모도 같은 형식을 쓴다. 메모가 문장이면 어색할 수 있지만 따로 분기하지 않는다.
 - 두 알림 모두 `collapseKey = "parking-{recordId}"`를 쓴다. 휴대폰에는 알림 하나만 남고, 층·구역이 들어오면 내용이 갱신된다.
   대답이 없으면 첫 알림(GPS 위치만)이 그대로 남는다.
 - `data`: `{ "type": "PARKING_RECORDED", "parkingRecordId": "..." }`. 앱은 이 값으로 `GET /parking-records/{id}`를 호출한다.
@@ -248,13 +269,17 @@ public record PushMessage(String token, String title, String body, Map<String, S
 |---|---|---|
 | **현대차 STT API 명세**(엔드포인트, 인증 방식, 오디오 포맷·샘플레이트, 응답 형식, 오류 형식, 호출 한도) | `HyundaiSpeechToText` 구현과 계약 테스트 | `provider=fake`로 개발·시연 |
 | FCM 서비스 계정 키(`FIREBASE_CREDENTIALS_PATH`) | 실제 FCM 전송 확인 | `provider=log` |
+| 현대차 STT의 숫자 표기(“36” vs “삼십육”) | 한글 수사 구역 인식 여부 | 아라비아 숫자만 인식(3.3 층·구역 규칙 5) |
 
 ## 10. 테스트
 
 - **단위 테스트**
   - `RuleBasedBriefingReplyInterpreter`: 응, 네, 그래 가자, 아니, 아니 괜찮아, 응 아니, 빈 문자열, 관계없는 문장
-  - `RuleBasedParkingSpotInterpreter`: 지하 2층 C구역, B2 씨 구역, 3층, 지하2층, C구역, 에이 구역, 의미 없는 문장
-  - `ParkingSpot.toMemo`, `VoiceInputResolver`(오류 코드 3종), 엔티티 상태 전이(`Vehicle`, `SavedPlace.changeType`, `ParkingRecord.markSentToPhone`)
+  - `RuleBasedParkingSpotInterpreter`: 지하 2층 C구역, B2 씨 구역, 3층, 지하2층, C구역, 에이 구역, 의미 없는 문장,
+    지하 1층 36구역(→ `B1`+`36`, 36이 층으로 잡히지 않음), 36번 구역, 3층 12구역(→ `3F`+`12`), C3구역, 씨 3 구역, C-3 구역(→ `C3`),
+    B2 구역(→ 구역 `B2`, 층 없음), 지하 2층 C(→ `B2`+`C`), 지하 1층 36(→ `B1`만)
+  - 푸시 문구: 두 이벤트의 제목 `마중`과 본문 형식("…에 주차를 완료했어요!"), 주차장 없을 때 "현재 위치"
+  - `ParkingSpot.toMemo`(`B1`+`36` → "지하 1층 36구역", 구역만 → "C3구역" 포함), `VoiceInputResolver`(오류 코드 3종), 엔티티 상태 전이(`Vehicle`, `SavedPlace.changeType`, `ParkingRecord.markSentToPhone`)
 - **계약 테스트**: `SpeechToTextContractTest`(추상 클래스)를 공급자 구현마다 상속한다(컨벤션 4.5). Fake 구현에 먼저 적용한다.
   현대차 구현은 명세를 받은 뒤 MockRestServiceServer로 검증한다.
 - **컨트롤러 테스트**: `@WebMvcTest` + `AuthFixture`. multipart(audio/text) 양쪽 경로, `understood: false`, 오류 코드를 확인한다.
