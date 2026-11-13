@@ -3,12 +3,14 @@ package com.hmc.hmcbe.parking.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.hmc.hmcbe.global.exception.BusinessException;
+import com.hmc.hmcbe.global.geo.GeoPoint;
 import com.hmc.hmcbe.parking.dto.request.ParkRequest;
 import com.hmc.hmcbe.parking.dto.response.ParkingRecordResponse;
 import com.hmc.hmcbe.parking.entity.ParkingRecord;
@@ -16,16 +18,21 @@ import com.hmc.hmcbe.parking.exception.ParkingErrorCode;
 import com.hmc.hmcbe.parking.fixture.ParkingRecordFixture;
 import com.hmc.hmcbe.parking.repository.ParkingRecordRepository;
 import com.hmc.hmcbe.parking.service.impl.ParkingRecordWriteServiceImpl;
+import com.hmc.hmcbe.parkinglot.dto.response.NearbyParkingLotResponse;
+import com.hmc.hmcbe.parkinglot.dto.response.ParkingLotResponse;
 import com.hmc.hmcbe.parkinglot.exception.ParkingLotErrorCode;
+import com.hmc.hmcbe.parkinglot.fixture.ParkingLotFixture;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotReadService;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -61,9 +68,56 @@ class ParkingRecordWriteServiceTest {
 
 		// then
 		verify(parkingLotReadService).getParkingLot(7L);
+		verify(parkingLotReadService, never()).findNearby(any(), anyInt(), any());
 		assertThat(response.parkedAt()).isEqualTo(NOW);
 		assertThat(response.parkingLotId()).isEqualTo(7L);
 		assertThat(response.spotMemo()).isNull();
+	}
+
+	@Test
+	@DisplayName("주차장 ID를 보내지 않으면 GPS 300m 검색의 첫 주차장을 서버 시각으로 기록한다")
+	void parkMatchesNearestLotAtServerTime() {
+		// given
+		GeoPoint location = new GeoPoint(37.5453, 127.2236);
+		given(parkingRecordRepository.findByUserIdAndExitedAtIsNull(1L)).willReturn(Optional.empty());
+		given(parkingRecordRepository.save(any(ParkingRecord.class))).willAnswer(i -> i.getArgument(0));
+		given(parkingLotReadService.findNearby(location, 300, NOW)).willReturn(List.of(
+				NearbyParkingLotResponse.of(ParkingLotResponse.from(ParkingLotFixture.parkingLotWithId(9L)), 25, null),
+				NearbyParkingLotResponse.of(ParkingLotResponse.from(ParkingLotFixture.parkingLotWithId(7L)), 200, null)));
+
+		// when
+		ParkingRecordResponse response = parkingRecordWriteService.park(1L,
+				new ParkRequest(location.latitude(), location.longitude(), null));
+
+		// then
+		verify(parkingLotReadService).findNearby(location, 300, NOW);
+		ArgumentCaptor<ParkingRecord> saved = ArgumentCaptor.forClass(ParkingRecord.class);
+		verify(parkingRecordRepository).save(saved.capture());
+		assertThat(saved.getValue().getParkingLotId()).isEqualTo(9L);
+		assertThat(response.parkingLotId()).isEqualTo(9L);
+		assertThat(response.latitude()).isEqualTo(location.latitude());
+		assertThat(response.longitude()).isEqualTo(location.longitude());
+		assertThat(response.parkedAt()).isEqualTo(NOW);
+	}
+
+	@Test
+	@DisplayName("주차장 ID가 없고 GPS 300m 안 후보도 없으면 주차장 없이 기록한다")
+	void parkWithoutNearbyLot() {
+		// given
+		given(parkingRecordRepository.findByUserIdAndExitedAtIsNull(1L)).willReturn(Optional.empty());
+		given(parkingRecordRepository.save(any(ParkingRecord.class))).willAnswer(i -> i.getArgument(0));
+		given(parkingLotReadService.findNearby(ParkingRecordFixture.LOCATION, 300, NOW)).willReturn(List.of());
+
+		// when
+		ParkingRecordResponse response = parkingRecordWriteService.park(1L, new ParkRequest(37.5262, 126.929, null));
+
+		// then
+		verify(parkingLotReadService).findNearby(ParkingRecordFixture.LOCATION, 300, NOW);
+		ArgumentCaptor<ParkingRecord> saved = ArgumentCaptor.forClass(ParkingRecord.class);
+		verify(parkingRecordRepository).save(saved.capture());
+		assertThat(saved.getValue().getParkingLotId()).isNull();
+		assertThat(response.parkingLotId()).isNull();
+		assertThat(response.parkedAt()).isEqualTo(NOW);
 	}
 
 	@Test
@@ -87,12 +141,16 @@ class ParkingRecordWriteServiceTest {
 	@Test
 	@DisplayName("없는 주차장으로 기록하면 NOT_FOUND이고 저장하지 않는다")
 	void parkWithUnknownLot() {
+		// given
 		given(parkingLotReadService.getParkingLot(9L)).willThrow(new BusinessException(ParkingLotErrorCode.PARKING_LOT_NOT_FOUND));
 
+		// when
 		BusinessException ex = assertThrows(BusinessException.class,
 				() -> parkingRecordWriteService.park(1L, new ParkRequest(37.5262, 126.929, 9L)));
 
+		// then
 		assertThat(ex.getErrorCode()).isEqualTo(ParkingLotErrorCode.PARKING_LOT_NOT_FOUND);
+		verify(parkingLotReadService, never()).findNearby(any(), anyInt(), any());
 		verify(parkingRecordRepository, never()).save(any());
 	}
 
