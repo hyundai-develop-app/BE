@@ -22,10 +22,14 @@ import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class ParkingLotWriteServiceTest {
@@ -55,6 +59,38 @@ class ParkingLotWriteServiceTest {
 		// then
 		verify(parkingLotRepository).save(captor.capture());
 		assertThat(captor.getValue().getFee()).isEqualTo(new ParkingFee(10, 1000));
+		assertThat(captor.getValue().getAddress()).isNull();
+		assertThat(captor.getValue().getFeeDescription()).isNull();
+		assertThat(captor.getValue().isWeekendOnly()).isFalse();
+	}
+
+	@ParameterizedTest
+	@NullSource
+	@ValueSource(booleans = {false, true})
+	@DisplayName("새 필드로 등록하면 주소·요금 문구를 전달하고 주말 전용 미지정은 false로 저장한다")
+	void registerWithFrontFields(Boolean weekendOnly) {
+		// given
+		RegisterParkingLotRequest request = new RegisterParkingLotRequest(
+				"주차장", 37.5259, 126.9284, true, null, 0, null, null, null,
+				"서울 강남구 영동대로 513 지하", "주말·공휴일 운영 시간 내 무료", weekendOnly);
+		given(parkingLotRepository.save(any(ParkingLot.class)))
+				.willAnswer(invocation -> {
+					ParkingLot lot = invocation.getArgument(0);
+					ReflectionTestUtils.setField(lot, "id", 7L);
+					return lot;
+				});
+		ArgumentCaptor<ParkingLot> captor = ArgumentCaptor.forClass(ParkingLot.class);
+
+		// when
+		Long id = parkingLotWriteService.register(request);
+
+		// then
+		verify(parkingLotRepository).save(captor.capture());
+		assertThat(id).isEqualTo(7L);
+		assertThat(captor.getValue().getAddress()).isEqualTo(request.address());
+		assertThat(captor.getValue().getFeeDescription()).isEqualTo(request.feeDescription());
+		assertThat(captor.getValue().isWeekendOnly()).isEqualTo(Boolean.TRUE.equals(weekendOnly));
+		assertThat(captor.getValue().getFee()).isNull();
 	}
 
 	@Test
@@ -108,6 +144,6 @@ class ParkingLotWriteServiceTest {
 
 	private static RegisterParkingLotRequest request(Integer feeUnitMinutes, Integer feeUnitPrice) {
 		return new RegisterParkingLotRequest("여의도 공영주차장", 37.5259, 126.9284, true, null, 120,
-				feeUnitMinutes, feeUnitPrice, 300);
+				feeUnitMinutes, feeUnitPrice, 300, null, null, null);
 	}
 }

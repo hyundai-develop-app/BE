@@ -31,7 +31,8 @@ class ParkingLotControllerTest {
 
 	private static final Instant AT = Instant.parse("2026-11-09T05:18:00Z");
 	private static final ParkingLotResponse LOT =
-			new ParkingLotResponse(7L, "여의도 공영주차장", 37.5259, 126.9284, true, null, 120, 10, 1000, 300);
+			new ParkingLotResponse(7L, "여의도 공영주차장", 37.5259, 126.9284, true, null, 120, 10, 1000, 300,
+					"서울 강남구 영동대로 513 지하", "10분 800원", false);
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -51,7 +52,10 @@ class ParkingLotControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data.name").value("여의도 공영주차장"))
 				.andExpect(jsonPath("$.data.freeMinutes").value(120))
-				.andExpect(jsonPath("$.data.feeUnitPrice").value(1000));
+				.andExpect(jsonPath("$.data.feeUnitPrice").value(1000))
+				.andExpect(jsonPath("$.data.address").value("서울 강남구 영동대로 513 지하"))
+				.andExpect(jsonPath("$.data.feeDescription").value("10분 800원"))
+				.andExpect(jsonPath("$.data.weekendOnly").value(false));
 	}
 
 	@Test
@@ -66,6 +70,9 @@ class ParkingLotControllerTest {
 						.param("at", AT.toString()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.data[0].parkingLot.id").value(7))
+				.andExpect(jsonPath("$.data[0].parkingLot.address").value("서울 강남구 영동대로 513 지하"))
+				.andExpect(jsonPath("$.data[0].parkingLot.feeDescription").value("10분 800원"))
+				.andExpect(jsonPath("$.data[0].parkingLot.weekendOnly").value(false))
 				.andExpect(jsonPath("$.data[0].distanceMeters").value(300))
 				.andExpect(jsonPath("$.data[0].forecast.congestionLevel").value("AVAILABLE"));
 	}

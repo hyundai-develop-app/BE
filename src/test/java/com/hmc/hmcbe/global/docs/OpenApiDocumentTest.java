@@ -137,6 +137,21 @@ class OpenApiDocumentTest {
 	}
 
 	@Test
+	@DisplayName("주차장 새 필드를 문서화하면 주소·요금 문구·주말 전용 설명과 예시를 제공한다")
+	void parkingLotFrontFieldsAreDocumented() {
+		// given
+		JsonNode properties = document.at("/components/schemas/ParkingLotResponse/properties");
+
+		// when & then
+		assertThat(properties.path("address").path("description").asText()).contains("주소", "null");
+		assertThat(properties.path("address").path("example").asText()).isEqualTo("서울 강남구 영동대로 513 지하");
+		assertThat(properties.path("feeDescription").path("description").asText()).contains("요금", "null");
+		assertThat(properties.path("feeDescription").path("example").asText()).isEqualTo("10분 800원");
+		assertThat(properties.path("weekendOnly").path("description").asText()).contains("토·일", "공휴일", "평일");
+		assertThat(properties.path("weekendOnly").path("example").asText()).isEqualTo("false");
+	}
+
+	@Test
 	@DisplayName("OpenAPI 문서를 build/openapi/openapi.json에 저장한다")
 	void exportDocument() throws Exception {
 		Files.createDirectories(EXPORT_PATH.getParent());

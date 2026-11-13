@@ -11,8 +11,11 @@ import com.hmc.hmcbe.parkinglot.entity.ParkingLot;
 import com.hmc.hmcbe.parkinglot.fixture.ParkingLotFixture;
 import java.time.Instant;
 import java.util.List;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
@@ -45,7 +48,7 @@ class ParkingLotRepositoryTest {
 
 		// when
 		List<NearbyParkingLotProjection> result =
-				parkingLotRepository.findNearby(center.latitude(), center.longitude(), 500, 10);
+				parkingLotRepository.findNearby(center.latitude(), center.longitude(), 500, 10, false);
 
 		// then
 		assertThat(result).extracting(NearbyParkingLotProjection::getId)
@@ -65,7 +68,7 @@ class ParkingLotRepositoryTest {
 
 		assertThat(result.getId()).isEqualTo(distant.getId());
 		assertThat(result.getDistanceMeters()).isCloseTo(1110, within(5.0));
-		assertThat(parkingLotRepository.findNearby(center.latitude(), center.longitude(), 500, 10)).isEmpty();
+		assertThat(parkingLotRepository.findNearby(center.latitude(), center.longitude(), 500, 10, false)).isEmpty();
 		assertThat(parkingLotRepository.findNearbyById(-1L, center.latitude(), center.longitude())).isEmpty();
 	}
 
@@ -98,7 +101,7 @@ class ParkingLotRepositoryTest {
 		// given
 		ParkingLot saved = parkingLotRepository.save(ParkingLotFixture.parkingLot());
 		ParkingLot free = parkingLotRepository.save(
-				ParkingLot.create("무료", ParkingLotFixture.YEOUIDO, false, null, 0, null, null));
+				ParkingLot.create("무료", ParkingLotFixture.YEOUIDO, false, null, 0, null, null, null, null, false));
 		entityManager.flush();
 		entityManager.clear();
 
@@ -110,6 +113,119 @@ class ParkingLotRepositoryTest {
 		assertThat(found.getLocation()).isEqualTo(ParkingLotFixture.YEOUIDO);
 		assertThat(found.getFee()).isEqualTo(new ParkingFee(10, 1000));
 		assertThat(foundFree.getFee()).isNull();
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = {false, true})
+	@DisplayName("주소·요금 문구·주말 전용 여부를 저장하고 다시 읽으면 값이 유지된다")
+	void persistFrontFields(boolean weekendOnly) {
+		// given
+		String address = "가".repeat(255);
+		String feeDescription = "나".repeat(255);
+		ParkingLot saved = parkingLotRepository.save(ParkingLotFixture.parkingLot(
+				"주차장", ParkingLotFixture.YEOUIDO, address, feeDescription, weekendOnly));
+		entityManager.flush();
+		entityManager.clear();
+
+		// when
+		ParkingLot found = parkingLotRepository.findById(saved.getId()).orElseThrow();
+
+		// then
+		assertThat(found.getAddress()).isEqualTo(address);
+		assertThat(found.getFeeDescription()).isEqualTo(feeDescription);
+		assertThat(found.isWeekendOnly()).isEqualTo(weekendOnly);
+	}
+
+	@Test
+	@DisplayName("새 컬럼을 생략하고 저장하면 주소와 요금 문구는 null이고 주말 전용은 false이다")
+	void frontFieldDatabaseDefaults() {
+		// when
+		Number id = (Number) entityManager.getEntityManager().createNativeQuery("""
+				INSERT INTO parking_lots (name, location, indoor, free_minutes, created_at, updated_at)
+				VALUES ('기존 형태', ST_SetSRID(ST_MakePoint(126.9284, 37.5259), 4326),
+					FALSE, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+				RETURNING id
+				""").getSingleResult();
+		ParkingLot found = parkingLotRepository.findById(id.longValue()).orElseThrow();
+
+		// then
+		assertThat(found.getAddress()).isNull();
+		assertThat(found.getFeeDescription()).isNull();
+		assertThat(found.isWeekendOnly()).isFalse();
+	}
+
+	@ParameterizedTest
+	@ValueSource(booleans = {false, true})
+	@DisplayName("주말 포함 여부로 조회하면 반경 안에서 허용된 주차장만 거리 순으로 반환한다")
+	void filterWeekendOnly(boolean includeWeekendOnly) {
+		// given
+		GeoPoint center = ParkingLotFixture.YEOUIDO;
+		ParkingLot weekend = parkingLotRepository.save(ParkingLotFixture.parkingLot(
+				"가까운 주말 전용", offset(center, 0.001), null, null, true));
+		ParkingLot regular = parkingLotRepository.save(ParkingLotFixture.parkingLot(
+				"상시 운영", offset(center, 0.002)));
+		parkingLotRepository.save(ParkingLotFixture.parkingLot(
+				"반경 밖 주말 전용", offset(center, 0.01), null, null, true));
+		entityManager.flush();
+		entityManager.clear();
+
+		// when
+		List<NearbyParkingLotProjection> result = parkingLotRepository.findNearby(
+				center.latitude(), center.longitude(), 500, 10, includeWeekendOnly);
+
+		// then
+		List<Long> expectedIds = includeWeekendOnly
+				? List.of(weekend.getId(), regular.getId()) : List.of(regular.getId());
+		assertThat(result).extracting(NearbyParkingLotProjection::getId).containsExactlyElementsOf(expectedIds);
+	}
+
+	@Test
+	@DisplayName("가까운 주말 전용 주차장이 10개보다 많아도 평일에는 일반 주차장 10개를 반환한다")
+	void filterWeekendOnlyBeforeLimit() {
+		// given
+		GeoPoint center = ParkingLotFixture.YEOUIDO;
+		List<Long> weekendIds = IntStream.range(0, 11)
+				.mapToObj(i -> parkingLotRepository.save(ParkingLotFixture.parkingLot(
+						"주말 전용" + i, offset(center, (i + 1) * 0.0001), null, null, true)).getId())
+				.toList();
+		List<Long> regularIds = IntStream.range(0, 12)
+				.mapToObj(i -> parkingLotRepository.save(ParkingLotFixture.parkingLot(
+						"상시 운영" + i, offset(center, 0.002 + i * 0.0001))).getId())
+				.toList();
+		entityManager.flush();
+		entityManager.clear();
+
+		// when
+		List<NearbyParkingLotProjection> weekday = parkingLotRepository.findNearby(
+				center.latitude(), center.longitude(), 500, 10, false);
+		List<NearbyParkingLotProjection> weekend = parkingLotRepository.findNearby(
+				center.latitude(), center.longitude(), 500, 10, true);
+
+		// then
+		assertThat(weekday).extracting(NearbyParkingLotProjection::getId)
+				.containsExactlyElementsOf(regularIds.subList(0, 10));
+		assertThat(weekend).extracting(NearbyParkingLotProjection::getId)
+				.containsExactlyElementsOf(weekendIds.subList(0, 10));
+	}
+
+	@Test
+	@DisplayName("주말 전용 주차장을 ID로 직접 지정하면 거리와 주차장 정보를 조회한다")
+	void findWeekendOnlyById() {
+		// given
+		GeoPoint center = ParkingLotFixture.YEOUIDO;
+		ParkingLot lot = parkingLotRepository.saveAndFlush(ParkingLotFixture.parkingLot(
+				"주말 전용", offset(center, 0.001), "서울 강남구", "주말 무료", true));
+		entityManager.clear();
+
+		// when
+		NearbyParkingLotProjection nearby = parkingLotRepository.findNearbyById(
+				lot.getId(), center.latitude(), center.longitude()).orElseThrow();
+		ParkingLot found = parkingLotRepository.findById(lot.getId()).orElseThrow();
+
+		// then
+		assertThat(nearby.getId()).isEqualTo(lot.getId());
+		assertThat(nearby.getDistanceMeters()).isCloseTo(111, within(2.0));
+		assertThat(found.isWeekendOnly()).isTrue();
 	}
 
 	@Test
