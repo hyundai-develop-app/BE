@@ -133,7 +133,7 @@ def register(args, root, registry):
         data = json.loads(other.read_text())
         if nfc(data['workspace']) == nfc(workspace):
             raise ValueError('이미 다른 작업에 배정된 worktree입니다.')
-        if data['status'] == 'integrated':
+        if data['status'] in ('integrated', 'superseded'):
             continue
         for left in paths:
             for right in data['write_paths']:
@@ -281,6 +281,10 @@ def task_command(args, root, registry):
         if not args.worker_stopped:
             raise ValueError('실행 프로세스 종료를 확인한 뒤 --worker-stopped를 지정하세요.')
         state['status'] = 'failed'
+    elif args.command == 'supersede':
+        # 테스트 자체가 틀려 작성자가 고칠 수 없을 때처럼, 작업을 새 작업으로 대체한다. 기록과 worktree는 보존한다.
+        require(state, 'testing', 'ready', 'review', 'rejected', 'failed', 'blocked')
+        state.update(status='superseded', superseded_by=args.by, superseded_reason=args.reason)
     elif args.command == 'integrate':
         require(state, 'accepted', 'integration-failed')
         if not clean(workspace) or sha(workspace) != state['accepted_commit']:
@@ -329,7 +333,8 @@ def main():
     p.add_argument('--migration')
     p = subs.add_parser('status')
     p.add_argument('task', nargs='?')
-    for name in ('run-tests', 'tests-ready', 'run-writer', 'review', 'refresh-review', 'recover', 'integrate'):
+    for name in ('run-tests', 'tests-ready', 'run-writer', 'review', 'refresh-review', 'recover', 'integrate',
+                 'supersede'):
         p = subs.add_parser(name)
         p.add_argument('task')
         if name == 'tests-ready':
@@ -341,6 +346,9 @@ def main():
             p.add_argument('--report', required=True)
         if name == 'recover':
             p.add_argument('--worker-stopped', action='store_true')
+        if name == 'supersede':
+            p.add_argument('--by', required=True)
+            p.add_argument('--reason', required=True)
     args = parser.parse_args()
     root = Path(git('.', 'rev-parse', '--show-toplevel').decode().strip()).resolve()
     if (root / '.work/task.json').exists():
