@@ -37,6 +37,8 @@ class PipelineTest(unittest.TestCase):
         codex = self.bin / 'codex'
         codex.write_text('''#!/usr/bin/env python3
 import os, pathlib, sys
+assert sys.argv[sys.argv.index('-m') + 1] == 'gpt-6.1-sol'
+assert sys.argv[sys.argv.index('-c') + 1] == 'model_reasoning_effort="high"'
 if os.environ.get('WRITER_FAIL'):
     sys.exit(1)
 p = pathlib.Path(os.environ['WRITE_FILE'])
@@ -119,6 +121,29 @@ pathlib.Path(sys.argv[sys.argv.index('-o') + 1]).write_text('writer result')
         self.assertEqual(self.state()['status'], 'failed')
         self.run_writer()
         self.assertEqual(self.state()['status'], 'review')
+
+    def test_codex_test_writer_preserves_red_gate(self):
+        work = self.register()
+        base = self.git(work, 'rev-parse', 'HEAD')
+        self.call('run-tests', 'user', env={'WRITE_FILE': 'src/test/UserTest.java'})
+        self.assertEqual(self.state()['status'], 'testing')
+        self.assertEqual(self.git(work, 'rev-parse', 'HEAD'), base)
+        self.assertTrue((work / 'src/test/UserTest.java').exists())
+        self.assertNotIn('RED_REASON:', (work / '.work/red-review.md').read_text())
+        self.assertTrue((self.root / '.work/results/user/test-writer.md').exists())
+
+    def test_codex_test_writer_rejects_implementation_changes(self):
+        work = self.register()
+        self.call('run-tests', 'user', ok=False, env={'WRITE_FILE': 'src/main/cheat.java'})
+        self.assertEqual(self.state()['status'], 'testing')
+        self.assertTrue((work / 'src/main/cheat.java').exists())
+
+    def test_codex_test_writer_failure_can_retry(self):
+        self.register()
+        self.call('run-tests', 'user', ok=False, env={'WRITER_FAIL': '1'})
+        self.assertEqual(self.state()['status'], 'testing')
+        self.call('run-tests', 'user', env={'WRITE_FILE': 'src/test/UserTest.java'})
+        self.assertEqual(self.state()['status'], 'testing')
 
     def test_writer_scope_violation(self):
         self.ready()

@@ -71,6 +71,13 @@ def run_logged(command, root, log):
         return subprocess.run(command, cwd=root, stdout=output, stderr=subprocess.STDOUT).returncode
 
 
+def codex_command(root, agent_role, workspace, report, prompt):
+    config = json.loads((root / 'scripts/codex-models.json').read_text())[agent_role]
+    return ['codex', 'exec', '-m', config['model'],
+            '-c', 'model_reasoning_effort=' + json.dumps(config['reasoning']),
+            '-s', 'workspace-write', '-C', str(workspace), '-o', str(report), prompt]
+
+
 def scope(state, workspace):
     paths = check(workspace, 'writer', state['test_commit'])
     for path in paths:
@@ -143,7 +150,33 @@ def task_command(args, root, registry):
     workspace = Path(state['workspace'])
     out = root / '.work/results' / args.task
     out.mkdir(parents=True, exist_ok=True)
-    if args.command == 'tests-ready':
+    if args.command == 'run-tests':
+        require(state, 'testing')
+        if sha(workspace) != state['base']:
+            raise ValueError('테스트 작성 전 HEAD가 기준 커밋과 다릅니다.')
+        check(workspace, 'verifier', state['base'])
+        role(workspace, 'verifier')
+        report = workspace / '.work/red-review.md'
+        prompt = (f'너는 테스트 작성자(verifier)다. AGENTS.md, CLAUDE.md, docs/CODE_CONVENTIONS.md, '
+                  f'docs/TEST_WRITER.md와 {state["spec"]}를 읽어라. '
+                  'src/test/**와 .work/red-review.md만 작성한다. src/main 및 설정/문서/스크립트 수정, '
+                  '기존 테스트 삭제, git commit과 테스트 실행은 금지한다. '
+                  '보고서에 필요한 public API, --tests 패턴, 예상 실패 원인을 작성하라. '
+                  'RED_REASON: missing-implementation은 관리자가 실제 실행 후 기록하므로 쓰지 마라. '
+                  + args.extra)
+        code = run_logged(codex_command(root, 'test_writer', workspace, report, prompt),
+                          workspace, out / 'test-writer.log')
+        if sha(workspace) != state['base']:
+            raise ValueError('테스트 작성자가 HEAD를 변경했습니다.')
+        changed = check(workspace, 'verifier', state['base'])
+        deleted = git(workspace, 'diff', '--no-renames', '--name-only', '--diff-filter=D', state['base'])
+        if deleted.strip():
+            raise ValueError('테스트 작성자는 기존 테스트를 삭제할 수 없습니다.')
+        if code != 0 or not report.exists() or not changed:
+            raise ValueError('테스트 작성 실패. test-writer.log를 확인하세요. 변경은 보존됩니다.')
+        (out / 'test-writer.md').write_text(report.read_text())
+        # Red 판정과 테스트 커밋은 기존 tests-ready 게이트만 수행한다.
+    elif args.command == 'tests-ready':
         require(state, 'testing')
         if sha(workspace) != state['base']:
             raise ValueError('검증자가 커밋을 만들었습니다. 관리자가 변경을 확인하세요.')
@@ -186,8 +219,8 @@ def task_command(args, root, registry):
         if state.get('review_report'):
             prompt += '\n이전 리뷰:\n' + Path(state['review_report']).read_text()
         try:
-            code = run_logged(['codex', 'exec', '-s', 'workspace-write', '-C', str(workspace),
-                               '-o', str(report), prompt], workspace, out / f"writer-{state['attempt']}.log")
+            code = run_logged(codex_command(root, 'writer', workspace, report, prompt),
+                              workspace, out / f"writer-{state['attempt']}.log")
             if code != 0 or not report.exists():
                 raise ValueError('작성자 실행 실패. 로그를 확인한 뒤 재실행하세요.')
             if sha(workspace) != state['test_commit']:
@@ -289,13 +322,13 @@ def main():
     p.add_argument('--migration')
     p = subs.add_parser('status')
     p.add_argument('task', nargs='?')
-    for name in ('tests-ready', 'run-writer', 'review', 'refresh-review', 'recover', 'integrate'):
+    for name in ('run-tests', 'tests-ready', 'run-writer', 'review', 'refresh-review', 'recover', 'integrate'):
         p = subs.add_parser(name)
         p.add_argument('task')
         if name == 'tests-ready':
             p.add_argument('--tests', required=True)
             p.add_argument('--report', required=True)
-        if name == 'run-writer':
+        if name in ('run-tests', 'run-writer'):
             p.add_argument('--extra', default='')
         if name == 'review':
             p.add_argument('--report', required=True)
