@@ -32,7 +32,10 @@ public class ParkingLotWriteServiceImpl implements ParkingLotWriteService {
 				request.entranceGuide(),
 				request.freeMinutes(),
 				toFee(request.feeUnitMinutes(), request.feeUnitPrice()),
-				request.totalSpaces());
+				request.totalSpaces(),
+				request.address(),
+				request.feeDescription(),
+				Boolean.TRUE.equals(request.weekendOnly()));
 		return parkingLotRepository.save(lot).getId();
 	}
 

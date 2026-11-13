@@ -12,8 +12,10 @@ import com.hmc.hmcbe.parkinglot.repository.NearbyParkingLotProjection;
 import com.hmc.hmcbe.parkinglot.repository.OccupancyForecastRepository;
 import com.hmc.hmcbe.parkinglot.repository.ParkingLotRepository;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotReadService;
+import java.time.DayOfWeek;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -48,8 +50,10 @@ public class ParkingLotReadServiceImpl implements ParkingLotReadService {
 			throw new BusinessException(ParkingLotErrorCode.INVALID_SEARCH_RADIUS,
 					"검색 반경은 1 ~ " + MAX_RADIUS_METERS + "m 사이여야 합니다");
 		}
+		DayOfWeek dayOfWeek = at.atZone(ZoneId.of("Asia/Seoul")).getDayOfWeek();
+		boolean includeWeekendOnly = dayOfWeek == DayOfWeek.SATURDAY || dayOfWeek == DayOfWeek.SUNDAY;
 		List<NearbyParkingLotProjection> nearby = parkingLotRepository.findNearby(
-				center.latitude(), center.longitude(), radiusMeters, MAX_NEARBY_RESULTS);
+				center.latitude(), center.longitude(), radiusMeters, MAX_NEARBY_RESULTS, includeWeekendOnly);
 		if (nearby.isEmpty()) {
 			return List.of();
 		}

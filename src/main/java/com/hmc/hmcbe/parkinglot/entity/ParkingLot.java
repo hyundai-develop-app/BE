@@ -25,6 +25,8 @@ public class ParkingLot extends BaseTimeEntity {
 
 	private static final int MAX_NAME_LENGTH = 100;
 	private static final int MAX_ENTRANCE_GUIDE_LENGTH = 255;
+	private static final int MAX_ADDRESS_LENGTH = 255;
+	private static final int MAX_FEE_DESCRIPTION_LENGTH = 255;
 
 	@Column(nullable = false, length = MAX_NAME_LENGTH)
 	private String name;
@@ -46,8 +48,17 @@ public class ParkingLot extends BaseTimeEntity {
 
 	private Integer totalSpaces;
 
+	@Column(length = MAX_ADDRESS_LENGTH)
+	private String address;
+
+	@Column(length = MAX_FEE_DESCRIPTION_LENGTH)
+	private String feeDescription;
+
+	@Column(nullable = false)
+	private boolean weekendOnly;
+
 	private ParkingLot(String name, Point location, boolean indoor, String entranceGuide, int freeMinutes,
-			ParkingFee fee, Integer totalSpaces) {
+			ParkingFee fee, Integer totalSpaces, String address, String feeDescription, boolean weekendOnly) {
 		this.name = name;
 		this.location = location;
 		this.indoor = indoor;
@@ -55,16 +66,27 @@ public class ParkingLot extends BaseTimeEntity {
 		this.freeMinutes = freeMinutes;
 		this.fee = fee;
 		this.totalSpaces = totalSpaces;
+		this.address = address;
+		this.feeDescription = feeDescription;
+		this.weekendOnly = weekendOnly;
 	}
 
 	public static ParkingLot create(String name, GeoPoint location, boolean indoor, String entranceGuide,
-			int freeMinutes, ParkingFee fee, Integer totalSpaces) {
+			int freeMinutes, ParkingFee fee, Integer totalSpaces, String address, String feeDescription,
+			boolean weekendOnly) {
 		requireText(name, MAX_NAME_LENGTH, "주차장 이름", ParkingLotErrorCode.INVALID_PARKING_LOT);
 		requireNonNull(location, "주차장 위치", ParkingLotErrorCode.INVALID_PARKING_LOT);
 		requireMaxLength(entranceGuide, MAX_ENTRANCE_GUIDE_LENGTH, "입구 안내", ParkingLotErrorCode.INVALID_PARKING_LOT);
 		require(freeMinutes >= 0, "무료 시간은 0분 이상이어야 합니다", ParkingLotErrorCode.INVALID_PARKING_LOT);
 		require(totalSpaces == null || totalSpaces > 0, "총 면수는 1 이상이어야 합니다", ParkingLotErrorCode.INVALID_PARKING_LOT);
-		return new ParkingLot(name, location.toPoint(), indoor, entranceGuide, freeMinutes, fee, totalSpaces);
+		if (address != null) {
+			requireText(address, MAX_ADDRESS_LENGTH, "주소", ParkingLotErrorCode.INVALID_PARKING_LOT);
+		}
+		if (feeDescription != null) {
+			requireText(feeDescription, MAX_FEE_DESCRIPTION_LENGTH, "요금 안내 문구", ParkingLotErrorCode.INVALID_PARKING_LOT);
+		}
+		return new ParkingLot(name, location.toPoint(), indoor, entranceGuide, freeMinutes, fee, totalSpaces,
+				address, feeDescription, weekendOnly);
 	}
 
 	public GeoPoint getLocation() {

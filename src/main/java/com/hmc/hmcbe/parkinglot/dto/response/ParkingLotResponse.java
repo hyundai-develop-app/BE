@@ -25,7 +25,13 @@ public record ParkingLotResponse(
 		@Schema(description = "단위 요금(원). 요금 정보가 없으면 null", example = "1000", nullable = true)
 		Integer feeUnitPrice,
 		@Schema(description = "총 주차면 수. 모르면 null", example = "6000", nullable = true)
-		Integer totalSpaces
+		Integer totalSpaces,
+		@Schema(description = "주소. 모르면 null", example = "서울 강남구 영동대로 513 지하", nullable = true)
+		String address,
+		@Schema(description = "요금 안내 문구(앱이 그대로 읽어 준다). 모르면 null", example = "10분 800원", nullable = true)
+		String feeDescription,
+		@Schema(description = "토·일에만 운영(공휴일은 판단하지 않음). 평일 주변 검색에서는 빠진다", example = "false")
+		boolean weekendOnly
 ) {
 	public static ParkingLotResponse from(ParkingLot lot) {
 		ParkingFee fee = lot.getFee();
@@ -39,6 +45,9 @@ public record ParkingLotResponse(
 				lot.getFreeMinutes(),
 				fee == null ? null : fee.unitMinutes(),
 				fee == null ? null : fee.unitPrice(),
-				lot.getTotalSpaces());
+				lot.getTotalSpaces(),
+				lot.getAddress(),
+				lot.getFeeDescription(),
+				lot.isWeekendOnly());
 	}
 }
