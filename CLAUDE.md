@@ -13,7 +13,7 @@
 - PostgreSQL + PostGIS (`postgis/postgis:16-3.4`) — 위치 기반 데이터를 다룰 것으로 보이는 스키마
 - Redis
 - Flyway로 스키마 관리. `spring.jpa.hibernate.ddl-auto: validate`이므로 **Hibernate가 스키마를 생성하지 않습니다** — 모든 스키마 변경은 `src/main/resources/db/migration`에 마이그레이션 파일로 작성해야 합니다. 아직 마이그레이션은 없습니다.
-- OAuth2 Resource Server(JWT) — 인증은 외부 Issuer(`OAUTH2_ISSUER_URI`)에 위임하고, 이 서비스는 토큰 검증만 수행합니다. 로그인/발급 로직은 이 저장소에 없습니다.
+- OAuth2 Resource Server(JWT) — 인증은 외부 Issuer(`OAUTH2_ISSUER_URI`)에 위임하고, 이 서비스는 토큰 검증만 수행합니다. 운영 로그인/발급 로직은 이 저장소에 없습니다. `local` 전용 데모 JWT 발급은 `docs/DEMO_AUTH.md`를 참고합니다.
 - AWS S3 (파일 저장), Firebase Admin SDK (FCM 푸시로 추정), springdoc-openapi(Swagger UI: `/swagger-ui.html`, API 문서: `/api-docs`), Micrometer + Prometheus + Loki(로깅/모니터링)
 - `open-in-view: false` — 트랜잭션 밖에서 지연 로딩 불가. `docs/CODE_CONVENTIONS.md` 2.4 참고.
 

@@ -109,6 +109,9 @@
 
 ## 3. 기타 반복되는 구조적 관례
 
+데모 JWT는 `global.auth`와 `LocalDemoSecurityConfig`에서만 처리하며, 발급·서명 키·검증 빈은
+`@Profile("local & !prod")`로 제한합니다. 운영 인증은 외부 Issuer를 사용합니다 (`docs/DEMO_AUTH.md`).
+
 기본 저장·조회 구현의 공통 엔티티는 `global.entity.BaseCreatedEntity`입니다. ID는 `Long`/IDENTITY,
 생성 시각은 `Instant`/`timestamptz`로 저장 시 자동 설정합니다. 새 테이블은 복수형 snake_case를 쓰고,
 Aggregate 간 Java 참조는 `Long` ID, DB 참조는 FK를 사용합니다. 아래 참고 프로젝트의 UUID 예시는
