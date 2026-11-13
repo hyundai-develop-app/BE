@@ -17,7 +17,7 @@ public record ArrivalOutlookResponse(
 		NearbyParkingLotResponse destinationParkingLot,
 		@Schema(description = "목적지 주차장의 도착 전후 1시간 예측(시각 순, 막대그래프용). 목적지 주차장이 없으면 빈 배열")
 		List<OccupancyForecastResponse> destinationForecasts,
-		@Schema(description = "목적지보다 여유 있는 주변 주차장 수(반경 500m)", example = "2")
+		@Schema(description = "목적지보다 여유 있는 주변 주차장 수(반경 700m)", example = "2")
 		int betterAlternativeCount
 ) {
 }

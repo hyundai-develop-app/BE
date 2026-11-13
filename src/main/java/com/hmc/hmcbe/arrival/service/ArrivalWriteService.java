@@ -10,6 +10,8 @@ public interface ArrivalWriteService {
 
 	ArrivalSessionResponse selectWaypoint(Long userId, Long sessionId, Long parkingLotId);
 
+	ArrivalSessionResponse clearWaypoint(Long userId, Long sessionId);
+
 	void complete(Long userId, Long sessionId);
 
 	void cancel(Long userId, Long sessionId);

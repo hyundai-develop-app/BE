@@ -26,8 +26,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class ArrivalReadServiceImpl implements ArrivalReadService {
 
-	/** 목적지 주변 대안 주차장 검색 반경. 화면 예시("300m 옆 공영주차장")를 포함하는 도보 거리로 잡았다. */
-	static final int SEARCH_RADIUS_METERS = 500;
+	/** 앱과 동일한 목적지 주차장 추정·대안 검색 반경. */
+	static final int SEARCH_RADIUS_METERS = 700;
 	/** ① 막대그래프 범위: 도착 시각 전후 1시간. */
 	static final Duration FORECAST_WINDOW = Duration.ofHours(1);
 

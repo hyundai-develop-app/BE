@@ -16,7 +16,8 @@ public record ParkingBriefingResponse(
 		NearbyParkingLotResponse recommended,
 		@Schema(description = """
 				목적지보다 여유 있는 대안 주차장(recommended 포함). 만차율 낮은 순, 같으면 가까운 순. 없으면 빈 배열.
-				목적지 예측이 있으면 그보다 만차율이 낮은 곳, 없으면 CONGESTED가 아닌 곳이 대안이다. 예측이 없는 주차장은 빠진다.""")
+				목적지 예측이 있으면 그보다 만차율이 낮은 곳, 없으면 CONGESTED가 아닌 곳이 대안이다. 예측이 없는 주차장은 예측 규칙에서 빠진다.
+				예측 규칙의 대안이 없고 목적지 예측도 없으면 예측 없는 후보 중 목적지보다 큰 주차장, 없으면 가장 가까운 다른 주차장을 추천한다. 추천을 앞에 두고 나머지는 거리순이다.""")
 		List<NearbyParkingLotResponse> alternatives
 ) {
 }

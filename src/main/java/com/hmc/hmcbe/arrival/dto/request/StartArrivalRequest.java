@@ -20,7 +20,7 @@ public record StartArrivalRequest(
 		@Schema(description = "목적지 경도", example = "127.2236", minimum = "-180", maximum = "180",
 				requiredMode = Schema.RequiredMode.REQUIRED)
 		@NotNull @DecimalMin("-180") @DecimalMax("180") Double longitude,
-		@Schema(description = "목적지 건물 주차장 ID. 확인된 경우에만 보낸다. 없는 ID면 404 PARKINGLOT4041", example = "1",
+		@Schema(description = "목적지 건물 주차장 ID. 확인된 경우에만 보낸다. 없는 ID면 404 PARKINGLOT4041. 보내지 않으면 목적지 반경 700m 안 가장 가까운 주차장으로 정한다", example = "1",
 				nullable = true)
 		Long destinationParkingLotId,
 		@Schema(description = "예상 도착 시각(ISO-8601)", example = "2026-11-14T09:30:00Z",

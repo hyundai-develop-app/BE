@@ -27,15 +27,14 @@ public class ArrivalWriteServiceImpl implements ArrivalWriteService {
 
 	@Override
 	public ArrivalSessionResponse start(Long userId, StartArrivalRequest request) {
-		if (request.destinationParkingLotId() != null) {
-			parkingLotReadService.getParkingLot(request.destinationParkingLotId());
-		}
+		GeoPoint destinationLocation = new GeoPoint(request.latitude(), request.longitude());
+		Long destinationParkingLotId = resolveDestinationParkingLotId(request, destinationLocation);
 		cancelActiveSession(userId);
 		ArrivalSession session = ArrivalSession.start(
 				userId,
 				request.destinationName(),
-				new GeoPoint(request.latitude(), request.longitude()),
-				request.destinationParkingLotId(),
+				destinationLocation,
+				destinationParkingLotId,
 				request.expectedArrivalAt());
 		return ArrivalSessionResponse.from(arrivalSessionRepository.save(session));
 	}
@@ -49,6 +48,13 @@ public class ArrivalWriteServiceImpl implements ArrivalWriteService {
 	}
 
 	@Override
+	public ArrivalSessionResponse clearWaypoint(Long userId, Long sessionId) {
+		ArrivalSession session = findOwnedSessionOrThrow(userId, sessionId);
+		session.clearWaypoint();
+		return ArrivalSessionResponse.from(session);
+	}
+
+	@Override
 	public void complete(Long userId, Long sessionId) {
 		findOwnedSessionOrThrow(userId, sessionId).complete(Instant.now(clock));
 	}
@@ -56,6 +62,18 @@ public class ArrivalWriteServiceImpl implements ArrivalWriteService {
 	@Override
 	public void cancel(Long userId, Long sessionId) {
 		findOwnedSessionOrThrow(userId, sessionId).cancel(Instant.now(clock));
+	}
+
+	private Long resolveDestinationParkingLotId(StartArrivalRequest request, GeoPoint destinationLocation) {
+		if (request.destinationParkingLotId() != null) {
+			parkingLotReadService.getParkingLot(request.destinationParkingLotId());
+			return request.destinationParkingLotId();
+		}
+		return parkingLotReadService.findNearby(
+				destinationLocation, ArrivalReadServiceImpl.SEARCH_RADIUS_METERS, request.expectedArrivalAt()).stream()
+				.findFirst()
+				.map(candidate -> candidate.parkingLot().id())
+				.orElse(null);
 	}
 
 	/**
