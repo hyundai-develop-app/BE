@@ -11,6 +11,7 @@ import java.time.Instant;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -137,5 +138,88 @@ class ArrivalSessionTest {
 
 		assertThat(session.isOwnedBy(1L)).isTrue();
 		assertThat(session.isOwnedBy(2L)).isFalse();
+	}
+
+	@Test
+	@DisplayName("경유지를 해제하면 목적지와 ACTIVE 상태를 유지하고 경유지만 비운다")
+	void clearWaypoint() {
+		// given
+		ArrivalSession session = ArrivalSessionFixture.activeSession(1L, 7L);
+		session.selectWaypoint(3L);
+
+		// when
+		session.clearWaypoint();
+
+		// then
+		assertThat(session.getWaypointParkingLotId()).isNull();
+		assertThat(session.getDestinationParkingLotId()).isEqualTo(7L);
+		assertThat(session.getDestinationName()).isEqualTo("더현대 서울");
+		assertThat(session.getDestinationLocation()).isEqualTo(DESTINATION);
+		assertThat(session.getExpectedArrivalAt()).isEqualTo(ETA);
+		assertThat(session.getStatus()).isEqualTo(ArrivalStatus.ACTIVE);
+		assertThat(session.getEndedAt()).isNull();
+	}
+
+	@Test
+	@DisplayName("경유지가 없거나 해제를 반복하면 성공하고 다시 경유지를 선택할 수 있다")
+	void clearWaypointIsIdempotent() {
+		// given
+		ArrivalSession session = ArrivalSessionFixture.activeSession(1L);
+
+		// when
+		session.clearWaypoint();
+		session.selectWaypoint(3L);
+		session.clearWaypoint();
+		session.clearWaypoint();
+
+		// then
+		assertThat(session.getWaypointParkingLotId()).isNull();
+		assertThat(session.getStatus()).isEqualTo(ArrivalStatus.ACTIVE);
+		session.selectWaypoint(4L);
+		assertThat(session.getWaypointParkingLotId()).isEqualTo(4L);
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = ArrivalStatus.class, names = {"COMPLETED", "CANCELLED"})
+	@DisplayName("완료·취소한 세션의 경유지를 해제하면 ALREADY_ENDED이고 기존 경유지를 유지한다")
+	void clearWaypointOnEndedSession(ArrivalStatus status) {
+		// given
+		ArrivalSession session = ArrivalSessionFixture.activeSession(1L, 7L);
+		session.selectWaypoint(3L);
+		if (status == ArrivalStatus.COMPLETED) {
+			session.complete(NOW);
+		} else {
+			session.cancel(NOW);
+		}
+
+		// when
+		BusinessException ex = assertThrows(BusinessException.class, session::clearWaypoint);
+
+		// then
+		assertThat(ex.getErrorCode()).isEqualTo(ArrivalErrorCode.ALREADY_ENDED);
+		assertThat(session.getWaypointParkingLotId()).isEqualTo(3L);
+		assertThat(session.getStatus()).isEqualTo(status);
+		assertThat(session.getEndedAt()).isEqualTo(NOW);
+	}
+
+	@ParameterizedTest
+	@EnumSource(value = ArrivalStatus.class, names = {"COMPLETED", "CANCELLED"})
+	@DisplayName("종료한 세션이면 경유지가 없어도 해제 시 ALREADY_ENDED로 거절한다")
+	void clearMissingWaypointOnEndedSession(ArrivalStatus status) {
+		// given
+		ArrivalSession session = ArrivalSessionFixture.activeSession(1L);
+		if (status == ArrivalStatus.COMPLETED) {
+			session.complete(NOW);
+		} else {
+			session.cancel(NOW);
+		}
+
+		// when
+		BusinessException ex = assertThrows(BusinessException.class, session::clearWaypoint);
+
+		// then
+		assertThat(ex.getErrorCode()).isEqualTo(ArrivalErrorCode.ALREADY_ENDED);
+		assertThat(session.getWaypointParkingLotId()).isNull();
+		assertThat(session.getStatus()).isEqualTo(status);
 	}
 }
