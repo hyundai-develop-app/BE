@@ -1,9 +1,11 @@
 package com.hmc.hmcbe.place.controller.docs;
 
+import com.hmc.hmcbe.global.docs.ApiErrorCodes;
 import com.hmc.hmcbe.global.response.ApiResponse;
 import com.hmc.hmcbe.place.dto.request.CreateSavedPlaceRequest;
 import com.hmc.hmcbe.place.dto.response.SavedPlaceResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
@@ -11,12 +13,16 @@ import org.springframework.http.ResponseEntity;
 @Tag(name = "SavedPlace", description = "다음 시동 요약의 빠른 목적지(집, 회사 등)")
 public interface SavedPlaceControllerDocs {
 
-	@Operation(summary = "내 장소 목록")
+	@Operation(summary = "내 장소 목록", description = "저장 순. 없으면 빈 배열.")
 	ResponseEntity<ApiResponse<List<SavedPlaceResponse>>> getSavedPlaces(Long userId);
 
-	@Operation(summary = "장소 저장", description = "같은 이름의 장소가 있으면 409 CONFLICT.")
+	@Operation(summary = "장소 저장", description = "같은 이름의 장소가 있으면 409 PLACE4091.")
+	@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "저장됨. data는 새 장소")
+	@ApiErrorCodes({"PLACE4001", "PLACE4091", "COMMON4091"})
 	ResponseEntity<ApiResponse<SavedPlaceResponse>> create(Long userId, CreateSavedPlaceRequest request);
 
-	@Operation(summary = "장소 삭제")
-	ResponseEntity<ApiResponse<Void>> delete(Long userId, Long savedPlaceId);
+	@Operation(summary = "장소 삭제", description = "성공하면 data는 null.")
+	@ApiErrorCodes({"PLACE4041"})
+	ResponseEntity<ApiResponse<Void>> delete(Long userId,
+			@Parameter(description = "장소 ID", example = "3") Long savedPlaceId);
 }
