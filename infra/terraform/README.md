@@ -2,6 +2,15 @@
 
 HMC-BE의 AWS 인프라를 Terraform으로 관리합니다. 파일 업로드용 S3와, 앱(Swagger 포함)을 올릴 EC2 1대 + 네트워크 구성입니다. EC2·EBS·퍼블릭 IPv4는 계정의 무료 혜택 범위를 넘으면 과금됩니다(아래 "무료 혜택과 비용 확인").
 
+## 계정 제약 (2026-11-14 확인)
+
+현재 계정은 새 방식 무료 플랜 프로젝트 계정이라 AWS가 관리하는 SCP가 걸려 있다. 루트 사용자도 우회할 수 없다.
+
+- EC2/ECR/SSM은 **ap-southeast-2(시드니)에서만** 허용된다. 그래서 `region` 기본값이 시드니다.
+- IAM 사용자 액세스 키는 EC2/ECR/S3가 막힌다. **콘솔 CloudShell**(로그인 역할)에서 Terraform을 실행한다.
+- IAM OIDC 공급자가 막혀 GitHub Actions OIDC 배포를 쓸 수 없다. `enable_github_oidc_deploy` 기본값은 false이고,
+  배포는 GHCR + EC2 자동 pull로 한다(`docs/DEPLOYMENT.md`).
+
 ## 만들어지는 리소스
 
 | 파일 | 리소스 | 용도 | 비용 |
