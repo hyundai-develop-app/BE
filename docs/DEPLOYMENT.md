@@ -4,8 +4,53 @@
 현재 HTTP 구성은 Swagger 확인용이다. 실제 JWT 사용 전 도메인과 TLS 프록시를 구성해야 한다.
 운영 데이터 저장 전 DB 백업/복구 절차도 별도로 준비해야 한다.
 
-PR A(컨테이너/prod 보안)를 develop에 먼저 병합하고 PR B(ECR/CI)를 병합한다.
 EC2에서는 이미지를 빌드하지 않는다.
+
+## 현재 방식: GHCR + EC2 자동 pull (기본)
+
+현재 AWS 계정은 새 방식 무료 플랜 프로젝트 계정이라 AWS 관리 SCP가 다음을 막는다(2026-11-14 확인).
+
+- ap-southeast-2(시드니) 외 리전의 EC2/ECR/SSM
+- IAM 사용자 자격증명의 EC2/ECR/S3 사용
+- IAM OIDC 공급자 조회/생성
+
+GitHub Actions가 AWS 자격증명을 얻을 방법이 없으므로 방향을 뒤집었다.
+
+```
+develop push → CI: ./gradlew check → linux/amd64 이미지를 GHCR에 push
+               (ghcr.io/hyundai-develop-app/hmc-be:develop, :sha-<commit>)
+EC2: hmc-autodeploy.timer(1분) → develop 태그 digest가 바뀌면
+     이미지의 revision 커밋에서 docker-compose.prod.yml·deploy-ec2.sh를 받아 배포 + health 확인
+```
+
+Terraform·인프라 작업은 콘솔 CloudShell(시드니)에서 실행한다. 노트북의 IAM 사용자 키는 SCP로 막힌다.
+상태 파일은 apply 후 `s3://hmc-prod-uploads-<계정ID>/terraform/terraform.tfstate`로 백업한다.
+
+### 최초 1회 설정
+
+1. GHCR 패키지를 Public으로 만든다. 첫 publish 후 GitHub → 조직 Packages → `hmc-be` →
+   Package settings → Change visibility → Public. (Private로 두면 EC2가 로그인 없이 pull할 수 없다.)
+2. CloudShell에서 EC2에 타이머를 설치한다.
+
+   ```sh
+   I=$(cd ~/BE/infra/terraform && terraform output -raw ec2_instance_id)
+   aws ssm send-command --instance-ids "$I" --document-name AWS-RunShellScript \
+     --parameters 'commands=["curl -fsSL https://raw.githubusercontent.com/hyundai-develop-app/BE/develop/scripts/install-autodeploy-ec2.sh | bash"]'
+   ```
+
+### 배포 확인과 운영
+
+- 배포 로그: `journalctl -u hmc-autodeploy --since "10 min ago"` (SSM 세션 또는 send-command)
+- 현재 이미지: `/opt/hmc/.app-image`. 실패한 digest는 `/opt/hmc/.autodeploy-failed`에 기록되고
+  재시도하지 않는다. 다음 push로 새 digest가 생기면 다시 시도한다.
+- CI 성공은 이미지 push 성공까지만 뜻한다. 배포 성공 여부는 위 로그와 `/actuator/health`로 확인한다.
+- 수동 재배포/롤백: `cd /opt/hmc && sudo bash deploy.sh 'ghcr.io/hyundai-develop-app/hmc-be@sha256:<digest>'`
+  (롤백 후 다음 develop push 때 자동 배포가 다시 최신으로 올린다.)
+
+## 이전 방식: OIDC + ECR + SSM (OIDC가 허용되는 계정에서만)
+
+SCP 제약이 없는 계정으로 옮기면 Terraform `enable_github_oidc_deploy=true`로 아래 경로를 다시 켤 수 있다.
+이 경우 EC2의 자동 pull 타이머는 `systemctl disable --now hmc-autodeploy.timer`로 끈다.
 
 배포를 활성화하기 **전에** 아래 1~3을 완료한다. PR 병합만으로 AWS 설정을 만들지는 않는다.
 

@@ -26,6 +26,15 @@ variable "github_repository" {
   default = "hyundai-develop-app/BE"
 }
 
+# 현재 계정은 SCP가 IAM OIDC 공급자를 막아 GitHub Actions가 AWS에 접근할 수 없다.
+# 그래서 기본은 끄고, CI는 GHCR에 이미지를 올리며 EC2가 직접 받아 배포한다(docs/DEPLOYMENT.md).
+# OIDC가 허용되는 계정에서만 true로 켠다.
+variable "enable_github_oidc_deploy" {
+  description = "true면 GitHub Actions OIDC 배포 역할(ECR push + SSM 명령)을 만든다."
+  type        = bool
+  default     = false
+}
+
 variable "github_oidc_provider_arn" {
   description = "Existing GitHub OIDC provider ARN; null creates one in this account"
   type        = string
@@ -33,13 +42,14 @@ variable "github_oidc_provider_arn" {
 }
 
 resource "aws_iam_openid_connect_provider" "github" {
-  count          = var.github_oidc_provider_arn == null ? 1 : 0
+  count          = var.enable_github_oidc_deploy && var.github_oidc_provider_arn == null ? 1 : 0
   url            = "https://token.actions.githubusercontent.com"
   client_id_list = ["sts.amazonaws.com"]
 }
 
 resource "aws_iam_role" "github_deploy" {
-  name = "${local.name_prefix}-github-deploy"
+  count = var.enable_github_oidc_deploy ? 1 : 0
+  name  = "${local.name_prefix}-github-deploy"
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -55,7 +65,8 @@ resource "aws_iam_role" "github_deploy" {
 }
 
 resource "aws_iam_role_policy" "github_deploy" {
-  role = aws_iam_role.github_deploy.id
+  count = var.enable_github_oidc_deploy ? 1 : 0
+  role  = aws_iam_role.github_deploy[0].id
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
@@ -74,5 +85,6 @@ output "ecr_repository_url" {
   value = aws_ecr_repository.app.repository_url
 }
 output "github_deploy_role_arn" {
-  value = aws_iam_role.github_deploy.arn
+  description = "enable_github_oidc_deploy=false면 null"
+  value       = try(aws_iam_role.github_deploy[0].arn, null)
 }

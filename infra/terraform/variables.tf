@@ -1,7 +1,9 @@
 variable "region" {
-  description = "AWS 리전 (서울)"
+  # 현재 계정(새 방식 무료 플랜 프로젝트 계정)은 AWS 관리 SCP가 시드니 외 리전의 EC2/ECR/SSM을 막는다.
+  # SCP 제약이 없는 계정으로 옮기면 ap-northeast-2(서울)로 바꿔도 된다. README "계정 제약" 참고.
+  description = "AWS 리전 (현재 계정 제약으로 시드니)"
   type        = string
-  default     = "ap-northeast-2"
+  default     = "ap-southeast-2"
 }
 
 variable "project" {
