@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * ⑤ 다음 시동 주차 요약: 경과 시간, 무료 시간, 남은 무료 시간, 빠른 목적지.
- * 주차장을 모르면 parkingLotName·freeMinutes·remainingFreeMinutes는 null이다.
+ * 주차장을 모르면 parkingLotName·parkingLotAddress·feeDescription·freeMinutes·remainingFreeMinutes는 null이다.
  */
 @Schema(description = "다음 시동 주차 요약")
 public record ParkingSummaryResponse(
@@ -14,6 +14,10 @@ public record ParkingSummaryResponse(
 		ParkingRecordResponse record,
 		@Schema(description = "주차장 이름. 주차장을 모르면 null", example = "스타필드 하남 주차장", nullable = true)
 		String parkingLotName,
+		@Schema(description = "주차장 주소. 주차장을 모르거나 주소가 없으면 null", example = "서울 강남구 영동대로 513 지하", nullable = true)
+		String parkingLotAddress,
+		@Schema(description = "주차장 요금 안내 문구(앱이 그대로 읽어 준다). 모르면 null", example = "10분 800원", nullable = true)
+		String feeDescription,
 		@Schema(description = "주차 후 경과 시간(분)", example = "95")
 		long elapsedMinutes,
 		@Schema(description = "주차장 무료 시간(분). 주차장을 모르면 null", example = "180", nullable = true)

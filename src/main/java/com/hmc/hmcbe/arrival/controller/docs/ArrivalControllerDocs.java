@@ -30,7 +30,7 @@ public interface ArrivalControllerDocs {
 	ResponseEntity<ApiResponse<ArrivalOutlookResponse>> getOutlook(Long userId,
 			@Parameter(description = "도착 모드 세션 ID", example = "10") Long sessionId);
 
-	@Operation(summary = "도착 10분 전 주차 브리핑", description = "목적지 주차장과 더 여유 있는 추천 주차장. 목적지 반경 500m 안에서 고른다.")
+	@Operation(summary = "도착 10분 전 주차 브리핑", description = "목적지 주차장과 더 여유 있는 추천 주차장. 목적지 반경 700m 안에서 고른다.")
 	@ApiErrorCodes({"ARRIVAL4041"})
 	ResponseEntity<ApiResponse<ParkingBriefingResponse>> getBriefing(Long userId,
 			@Parameter(description = "도착 모드 세션 ID", example = "10") Long sessionId);
@@ -40,6 +40,11 @@ public interface ArrivalControllerDocs {
 	ResponseEntity<ApiResponse<ArrivalSessionResponse>> selectWaypoint(Long userId,
 			@Parameter(description = "도착 모드 세션 ID", example = "10") Long sessionId,
 			SelectWaypointRequest request);
+
+	@Operation(summary = "경유 주차장 해제", description = "브리핑 '되돌리기'. 경유지를 지우고 원래 목적지로 돌아간다. 경유지가 없어도 성공한다.")
+	@ApiErrorCodes({"ARRIVAL4041", "ARRIVAL4091"})
+	ResponseEntity<ApiResponse<ArrivalSessionResponse>> clearWaypoint(Long userId,
+			@Parameter(description = "도착 모드 세션 ID", example = "10") Long sessionId);
 
 	@Operation(summary = "도착 모드 완료", description = "성공하면 data는 null.")
 	@ApiErrorCodes({"ARRIVAL4041", "ARRIVAL4091"})

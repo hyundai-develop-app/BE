@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Manager-owned task registry and gates for isolated Git worktrees."""
 import argparse
+import unicodedata
 from contextlib import contextmanager
 from datetime import datetime, timezone
 import fcntl
@@ -15,6 +16,10 @@ import sys
 sys.dont_write_bytecode = True
 
 from role_boundary import check, git
+
+
+def nfc(path):
+    return unicodedata.normalize('NFC', str(path))
 
 
 def sha(root):
@@ -99,9 +104,11 @@ def register(args, root, registry):
     if not re.fullmatch(r'[a-z0-9][a-z0-9-]*', args.task):
         raise ValueError('작업 ID는 소문자, 숫자, 하이픈만 사용합니다.')
     workspace = Path(args.workspace).resolve()
-    if workspace == root or Path(git(workspace, 'rev-parse', '--show-toplevel').decode().strip()).resolve() != workspace:
+    toplevel = Path(git(workspace, 'rev-parse', '--show-toplevel').decode().strip()).resolve()
+    if nfc(workspace) == nfc(root) or nfc(toplevel) != nfc(workspace):
         raise ValueError('관리자와 다른 독립 worktree 루트를 지정하세요.')
-    common = lambda p: Path(git(p, 'rev-parse', '--path-format=absolute', '--git-common-dir').decode().strip()).resolve()
+    # macOS git은 한글 경로를 NFD로 돌려줄 수 있어 NFC로 맞춰 비교한다.
+    common = lambda p: nfc(Path(git(p, 'rev-parse', '--path-format=absolute', '--git-common-dir').decode().strip()).resolve())
     if common(root) != common(workspace):
         raise ValueError('같은 저장소의 worktree만 등록할 수 있습니다.')
     if not clean(workspace) or sha(root) != sha(workspace):
@@ -124,9 +131,9 @@ def register(args, root, registry):
         raise ValueError('이미 등록된 작업 또는 작업 공간입니다.')
     for other in registry.glob('*.json'):
         data = json.loads(other.read_text())
-        if data['workspace'] == str(workspace):
+        if nfc(data['workspace']) == nfc(workspace):
             raise ValueError('이미 다른 작업에 배정된 worktree입니다.')
-        if data['status'] == 'integrated':
+        if data['status'] in ('integrated', 'superseded'):
             continue
         for left in paths:
             for right in data['write_paths']:
@@ -274,6 +281,10 @@ def task_command(args, root, registry):
         if not args.worker_stopped:
             raise ValueError('실행 프로세스 종료를 확인한 뒤 --worker-stopped를 지정하세요.')
         state['status'] = 'failed'
+    elif args.command == 'supersede':
+        # 테스트 자체가 틀려 작성자가 고칠 수 없을 때처럼, 작업을 새 작업으로 대체한다. 기록과 worktree는 보존한다.
+        require(state, 'testing', 'ready', 'review', 'rejected', 'failed', 'blocked')
+        state.update(status='superseded', superseded_by=args.by, superseded_reason=args.reason)
     elif args.command == 'integrate':
         require(state, 'accepted', 'integration-failed')
         if not clean(workspace) or sha(workspace) != state['accepted_commit']:
@@ -322,7 +333,8 @@ def main():
     p.add_argument('--migration')
     p = subs.add_parser('status')
     p.add_argument('task', nargs='?')
-    for name in ('run-tests', 'tests-ready', 'run-writer', 'review', 'refresh-review', 'recover', 'integrate'):
+    for name in ('run-tests', 'tests-ready', 'run-writer', 'review', 'refresh-review', 'recover', 'integrate',
+                 'supersede'):
         p = subs.add_parser(name)
         p.add_argument('task')
         if name == 'tests-ready':
@@ -334,6 +346,9 @@ def main():
             p.add_argument('--report', required=True)
         if name == 'recover':
             p.add_argument('--worker-stopped', action='store_true')
+        if name == 'supersede':
+            p.add_argument('--by', required=True)
+            p.add_argument('--reason', required=True)
     args = parser.parse_args()
     root = Path(git('.', 'rev-parse', '--show-toplevel').decode().strip()).resolve()
     if (root / '.work/task.json').exists():

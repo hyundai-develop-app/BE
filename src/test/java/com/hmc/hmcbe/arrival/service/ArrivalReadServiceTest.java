@@ -18,6 +18,7 @@ import com.hmc.hmcbe.global.exception.BusinessException;
 import com.hmc.hmcbe.parkinglot.dto.response.NearbyParkingLotResponse;
 import com.hmc.hmcbe.parkinglot.dto.response.OccupancyForecastResponse;
 import com.hmc.hmcbe.parkinglot.dto.response.ParkingLotResponse;
+import com.hmc.hmcbe.parkinglot.fixture.NearbyParkingLotFixture;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotReadService;
 import java.time.Duration;
 import java.time.Instant;
@@ -57,7 +58,7 @@ class ArrivalReadServiceTest {
 	void missingDestination() {
 		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
 		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
-		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA)).willReturn(List.of(publicLot));
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA)).willReturn(List.of(publicLot));
 		given(parkingLotReadService.findNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA)).willReturn(Optional.empty());
 
 		assertThat(arrivalReadService.getBriefing(1L, 5L).destinationParkingLot()).isNull();
@@ -70,7 +71,7 @@ class ArrivalReadServiceTest {
 		// given
 		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
 		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
-		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA))
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA))
 				.willReturn(List.of(destinationLot, publicLot));
 		List<OccupancyForecastResponse> chart = List.of(new OccupancyForecastResponse(ETA, 95, "CONGESTED"));
 		given(parkingLotReadService.getForecasts(7L, ETA.minus(Duration.ofHours(1)), ETA.plus(Duration.ofHours(1))))
@@ -84,6 +85,7 @@ class ArrivalReadServiceTest {
 		assertThat(outlook.destinationParkingLot()).isEqualTo(destinationLot);
 		assertThat(outlook.destinationForecasts()).isEqualTo(chart);
 		assertThat(outlook.betterAlternativeCount()).isEqualTo(1);
+		verify(parkingLotReadService).findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA);
 	}
 
 	@Test
@@ -91,14 +93,14 @@ class ArrivalReadServiceTest {
 	void getOutlookWithoutDestinationLot() {
 		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L), 5L);
 		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
-		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA))
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA))
 				.willReturn(List.of(publicLot));
 
 		ArrivalOutlookResponse outlook = arrivalReadService.getOutlook(1L, 5L);
 
 		assertThat(outlook.destinationParkingLot()).isNull();
 		assertThat(outlook.destinationForecasts()).isEmpty();
-		verify(parkingLotReadService).findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA);
+		verify(parkingLotReadService).findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA);
 		verifyNoMoreInteractions(parkingLotReadService);
 	}
 
@@ -107,7 +109,7 @@ class ArrivalReadServiceTest {
 	void getBriefing() {
 		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
 		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
-		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA))
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA))
 				.willReturn(List.of(destinationLot, publicLot));
 
 		ParkingBriefingResponse briefing = arrivalReadService.getBriefing(1L, 5L);
@@ -115,16 +117,17 @@ class ArrivalReadServiceTest {
 		assertThat(briefing.destinationParkingLot()).isEqualTo(destinationLot);
 		assertThat(briefing.recommended()).isEqualTo(publicLot);
 		assertThat(briefing.alternatives()).containsExactly(publicLot);
+		verify(parkingLotReadService).findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA);
 	}
 
 	@Test
-	@DisplayName("목적지 주차장이 500m 밖에 있어도 ID로 조회해 그보다 여유 있는 곳만 추천한다")
+	@DisplayName("목적지 주차장이 700m 밖에 있어도 ID로 조회해 그보다 여유 있는 곳만 추천한다")
 	void compareDestinationOutsideSearchRadius() {
 		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
 		NearbyParkingLotResponse distantDestination = candidate(7L, 1500, 20, "AVAILABLE");
 		NearbyParkingLotResponse better = candidate(4L, 250, 10, "AVAILABLE");
 		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
-		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA))
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA))
 				.willReturn(List.of(publicLot, better));
 		given(parkingLotReadService.findNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA))
 				.willReturn(Optional.of(distantDestination));
@@ -144,7 +147,7 @@ class ArrivalReadServiceTest {
 				.mapToObj(id -> candidate(id, 100, 40, "AVAILABLE")).toList();
 		NearbyParkingLotResponse omittedDestination = candidate(7L, 400, 20, "AVAILABLE");
 		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
-		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 500, ETA)).willReturn(nearby);
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA)).willReturn(nearby);
 		given(parkingLotReadService.findNearbyById(7L, ArrivalSessionFixture.DESTINATION, ETA))
 				.willReturn(Optional.of(omittedDestination));
 
@@ -176,7 +179,55 @@ class ArrivalReadServiceTest {
 	}
 
 	private static NearbyParkingLotResponse candidate(Long id, int distance, int rate, String level) {
-		ParkingLotResponse lot = new ParkingLotResponse(id, "주차장" + id, 37.5, 126.9, true, null, 120, 10, 1000, 100);
+		ParkingLotResponse lot = new ParkingLotResponse(id, "주차장" + id, 37.5, 126.9, true, null, 120, 10, 1000, 100, null, null, false);
 		return new NearbyParkingLotResponse(lot, distance, new OccupancyForecastResponse(ETA, rate, level));
+	}
+
+	@Test
+	@DisplayName("예측 없는 목적지의 브리핑을 조회하면 700m 안의 더 큰 주차장을 추천한다")
+	void getBriefingWithoutForecasts() {
+		// given
+		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
+		NearbyParkingLotResponse destination = NearbyParkingLotFixture.withoutForecast(7L, 0, 100);
+		NearbyParkingLotResponse near = NearbyParkingLotFixture.withoutForecast(3L, 300, 80);
+		NearbyParkingLotResponse larger = NearbyParkingLotFixture.withoutForecast(4L, 650, 200);
+		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA))
+				.willReturn(List.of(destination, near, larger));
+
+		// when
+		ParkingBriefingResponse briefing = arrivalReadService.getBriefing(1L, 5L);
+
+		// then
+		assertThat(briefing.destinationParkingLot()).isEqualTo(destination);
+		assertThat(briefing.recommended()).isEqualTo(larger);
+		assertThat(briefing.alternatives()).containsExactly(larger, near);
+		assertThat(session.getDestinationParkingLotId()).isEqualTo(7L);
+		verify(parkingLotReadService).findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA);
+	}
+
+	@Test
+	@DisplayName("예측 없는 대안을 대기 화면에서 조회하면 대체 규칙의 대안 수를 반환한다")
+	void getOutlookCountsFallbackAlternatives() {
+		// given
+		ArrivalSession session = ArrivalSessionFixture.withId(ArrivalSessionFixture.activeSession(1L, 7L), 5L);
+		NearbyParkingLotResponse destination = NearbyParkingLotFixture.withoutForecast(7L, 0, 100);
+		NearbyParkingLotResponse near = NearbyParkingLotFixture.withoutForecast(3L, 300, 80);
+		NearbyParkingLotResponse larger = NearbyParkingLotFixture.withoutForecast(4L, 650, 200);
+		given(arrivalSessionRepository.findById(5L)).willReturn(Optional.of(session));
+		given(parkingLotReadService.findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA))
+				.willReturn(List.of(destination, near, larger));
+		given(parkingLotReadService.getForecasts(7L, ETA.minus(Duration.ofHours(1)), ETA.plus(Duration.ofHours(1))))
+				.willReturn(List.of());
+
+		// when
+		ArrivalOutlookResponse outlook = arrivalReadService.getOutlook(1L, 5L);
+
+		// then
+		assertThat(outlook.destinationParkingLot()).isEqualTo(destination);
+		assertThat(outlook.destinationForecasts()).isEmpty();
+		assertThat(outlook.betterAlternativeCount()).isEqualTo(2);
+		assertThat(outlook.session().destinationParkingLotId()).isEqualTo(7L);
+		verify(parkingLotReadService).findNearby(ArrivalSessionFixture.DESTINATION, 700, ETA);
 	}
 }

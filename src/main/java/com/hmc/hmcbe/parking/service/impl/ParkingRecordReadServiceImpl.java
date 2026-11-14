@@ -42,6 +42,8 @@ public class ParkingRecordReadServiceImpl implements ParkingRecordReadService {
 		return new ParkingSummaryResponse(
 				ParkingRecordResponse.from(record),
 				lot == null ? null : lot.name(),
+				lot == null ? null : lot.address(),
+				lot == null ? null : lot.feeDescription(),
 				record.elapsed(now).toMinutes(),
 				lot == null ? null : lot.freeMinutes(),
 				lot == null ? null : record.remainingFreeTime(Duration.ofMinutes(lot.freeMinutes()), now).toMinutes(),

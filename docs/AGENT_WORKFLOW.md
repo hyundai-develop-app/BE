@@ -26,6 +26,7 @@ Claude의 Edit/Write 훅은 정규화한 경로를 검사한다. 작업 역할�
 - 작업별 파일 잠금으로 같은 작업의 중복 실행을 차단하고, 등록과 통합에는 관리자 잠금을 추가한다. 다른 작업의 작성자 실행은 서로 기다리지 않는다.
 
 상태: `testing → ready → running → review → accepted → integrated`.
+테스트 자체가 틀려 작성자가 고칠 수 없으면 `supersede {id} --by {새 id} --reason ...`로 `superseded` 처리하고 새 작업으로 다시 진행한다. 기록·worktree는 보존되고 수정 경로 예약만 풀린다.
 실행 실패는 `failed`, 리뷰 반려는 `rejected`, 3회 반려는 `blocked`, 병합/통합 검사 실패는 `integration-failed`다. `accepted`는 작업 단독 검증 완료이며 `integrated`만 통합 완료다.
 
 ## 준비와 작업 발행

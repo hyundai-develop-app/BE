@@ -1,6 +1,7 @@
 package com.hmc.hmcbe.arrival.service;
 
 import com.hmc.hmcbe.parkinglot.dto.response.NearbyParkingLotResponse;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -10,7 +11,8 @@ import org.springframework.stereotype.Component;
  * <ul>
  * <li>목적지 주차장 예측이 있으면: 그보다 만차율이 낮은 주차장이 대안이다.</li>
  * <li>목적지 주차장이 없거나 예측이 없으면: 혼잡(CONGESTED)이 아닌 주차장이 대안이다.</li>
- * <li>예측이 없는 주차장은 대안으로 보지 않는다. 대안은 만차율, 거리 순으로 정렬하고 첫 번째를 추천한다.</li>
+ * <li>예측 대안은 만차율, 거리 순으로 정렬하고 첫 번째를 추천한다.</li>
+ * <li>예측 대안과 목적지 예측이 모두 없으면 예측 없는 후보에서 목적지보다 큰 첫 주차장, 없으면 가장 가까운 곳을 추천한다.</li>
  * </ul>
  */
 @Component
@@ -31,7 +33,31 @@ public class ParkingRecommendationPolicy {
 						.thenComparingInt(NearbyParkingLotResponse::distanceMeters))
 				.toList();
 
+		if (alternatives.isEmpty() && (destination == null || destination.forecast() == null)) {
+			alternatives = fallbackAlternatives(destination, candidates);
+		}
 		return new Recommendation(destination, alternatives.isEmpty() ? null : alternatives.get(0), alternatives);
+	}
+
+	private List<NearbyParkingLotResponse> fallbackAlternatives(NearbyParkingLotResponse destination,
+			List<NearbyParkingLotResponse> candidates) {
+		List<NearbyParkingLotResponse> pool = candidates.stream()
+				.filter(c -> c != destination && c.forecast() == null)
+				.sorted(Comparator.comparingInt(NearbyParkingLotResponse::distanceMeters))
+				.toList();
+		if (pool.isEmpty()) {
+			return pool;
+		}
+		Integer destinationSpaces = destination == null ? null : destination.parkingLot().totalSpaces();
+		NearbyParkingLotResponse recommended = pool.stream()
+				.filter(c -> destinationSpaces != null && c.parkingLot().totalSpaces() != null
+						&& c.parkingLot().totalSpaces() > destinationSpaces)
+				.findFirst()
+				.orElse(pool.get(0));
+		List<NearbyParkingLotResponse> alternatives = new ArrayList<>(pool);
+		alternatives.remove(recommended);
+		alternatives.add(0, recommended);
+		return List.copyOf(alternatives);
 	}
 
 	private boolean isBetterThan(NearbyParkingLotResponse candidate, NearbyParkingLotResponse destination) {

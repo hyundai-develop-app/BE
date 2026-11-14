@@ -137,6 +137,50 @@ class OpenApiDocumentTest {
 	}
 
 	@Test
+	@DisplayName("주차장 새 필드를 문서화하면 주소·요금 문구·주말 전용 설명과 예시를 제공한다")
+	void parkingLotFrontFieldsAreDocumented() {
+		// given
+		JsonNode properties = document.at("/components/schemas/ParkingLotResponse/properties");
+
+		// when & then
+		assertThat(properties.path("address").path("description").asText()).contains("주소", "null");
+		assertThat(properties.path("address").path("example").asText()).isEqualTo("서울 강남구 영동대로 513 지하");
+		assertThat(properties.path("feeDescription").path("description").asText()).contains("요금", "null");
+		assertThat(properties.path("feeDescription").path("example").asText()).isEqualTo("10분 800원");
+		assertThat(properties.path("weekendOnly").path("description").asText()).contains("토·일", "공휴일", "평일");
+		assertThat(properties.path("weekendOnly").path("example").asText()).isEqualTo("false");
+	}
+
+	@Test
+	@DisplayName("P단 주차 API를 문서화하면 주차장 ID 생략 시 GPS 300m 안 가장 가까운 주차장 추정을 안내한다")
+	void parkingLotMatchingIsDocumented() {
+		// given
+		JsonNode parkingLotId = document.at("/components/schemas/ParkRequest/properties/parkingLotId");
+		JsonNode park = operation("post", "/api/v1/parking-records");
+
+		// when & then
+		assertThat(parkingLotId.path("description").asText())
+			.contains("보내지 않으면 주차 위치 300m 안 가장 가까운 주차장으로 기록한다");
+		assertThat(park.path("description").asText()).contains("300m", "가장 가까운");
+	}
+
+	@Test
+	@DisplayName("주차 요약을 문서화하면 주소·요금 문구의 설명과 예시를 제공한다")
+	void parkingSummaryFrontFieldsAreDocumented() {
+		// given
+		JsonNode properties = document.at("/components/schemas/ParkingSummaryResponse/properties");
+
+		// when & then
+		assertThat(properties.path("parkingLotAddress").path("description").asText())
+			.isEqualTo("주차장 주소. 주차장을 모르거나 주소가 없으면 null");
+		assertThat(properties.path("parkingLotAddress").path("example").asText())
+			.isEqualTo("서울 강남구 영동대로 513 지하");
+		assertThat(properties.path("feeDescription").path("description").asText())
+			.isEqualTo("주차장 요금 안내 문구(앱이 그대로 읽어 준다). 모르면 null");
+		assertThat(properties.path("feeDescription").path("example").asText()).isEqualTo("10분 800원");
+	}
+
+	@Test
 	@DisplayName("OpenAPI 문서를 build/openapi/openapi.json에 저장한다")
 	void exportDocument() throws Exception {
 		Files.createDirectories(EXPORT_PATH.getParent());
@@ -144,6 +188,56 @@ class OpenApiDocumentTest {
 
 		assertThat(EXPORT_PATH).exists();
 		assertThat(document.at("/info/title").asText()).isEqualTo("HMC-BE API");
+	}
+
+	@Test
+	@DisplayName("경유지 해제 API를 문서화하면 200 세션 응답과 404·409 오류 예시를 제공한다")
+	void clearWaypointIsDocumented() {
+		// given
+		JsonNode clear = operation("delete", "/api/v1/arrivals/{sessionId}/waypoint");
+
+		// when
+		JsonNode responses = clear.path("responses");
+		List<JsonNode> sessionParameters = new ArrayList<>();
+		clear.path("parameters").forEach(parameter -> {
+			if (parameter.path("name").asText().equals("sessionId")) {
+				sessionParameters.add(parameter);
+			}
+		});
+
+		// then
+		assertThat(clear.path("operationId").asText()).isEqualTo("clearWaypoint");
+		assertThat(clear.path("summary").asText()).isEqualTo("경유 주차장 해제");
+		assertThat(clear.path("description").asText()).contains("되돌리기", "원래 목적지", "경유지가 없어도 성공");
+		assertThat(responses.at("/200/content/application~1json/schema/$ref").asText())
+				.isEqualTo(operation("get", "/api/v1/arrivals/active")
+						.at("/responses/200/content/application~1json/schema/$ref").asText())
+				.startsWith("#/components/schemas/ApiResponse");
+		assertThat(exampleCodes(responses, "404")).containsExactly("ARRIVAL4041");
+		assertThat(exampleCodes(responses, "409")).containsExactly("ARRIVAL4091");
+		assertThat(sessionParameters).hasSize(1);
+		assertThat(sessionParameters.get(0).path("in").asText()).isEqualTo("path");
+		assertThat(sessionParameters.get(0).path("description").asText()).isEqualTo("도착 모드 세션 ID");
+		assertThat(sessionParameters.get(0).path("example").asText()).isEqualTo("10");
+	}
+
+	@Test
+	@DisplayName("도착 모드 문서를 조회하면 700m 검색·목적지 추정·예측 없는 추천 규칙을 설명한다")
+	void arrivalFrontParityRulesAreDocumented() {
+		// given
+		JsonNode schemas = document.at("/components/schemas");
+
+		// when
+		String briefing = operation("get", "/api/v1/arrivals/{sessionId}/briefing").path("description").asText();
+		String count = schemas.at("/ArrivalOutlookResponse/properties/betterAlternativeCount/description").asText();
+		String destination = schemas.at("/StartArrivalRequest/properties/destinationParkingLotId/description").asText();
+		String alternatives = schemas.at("/ParkingBriefingResponse/properties/alternatives/description").asText();
+
+		// then
+		assertThat(briefing).contains("700m").doesNotContain("500m");
+		assertThat(count).contains("700m").doesNotContain("500m");
+		assertThat(destination).contains("700m", "가장 가까운");
+		assertThat(alternatives).contains("예측", "큰", "가까운", "추천");
 	}
 
 	private List<Map.Entry<String, JsonNode>> operations() {

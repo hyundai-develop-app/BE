@@ -12,6 +12,7 @@ import com.hmc.hmcbe.parking.fixture.ParkingRecordFixture;
 import com.hmc.hmcbe.parking.repository.ParkingRecordRepository;
 import com.hmc.hmcbe.parking.service.impl.ParkingRecordReadServiceImpl;
 import com.hmc.hmcbe.parkinglot.dto.response.ParkingLotResponse;
+import com.hmc.hmcbe.parkinglot.fixture.ParkingLotFixture;
 import com.hmc.hmcbe.parkinglot.service.ParkingLotReadService;
 import com.hmc.hmcbe.place.dto.response.SavedPlaceResponse;
 import com.hmc.hmcbe.place.service.SavedPlaceReadService;
@@ -24,6 +25,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -59,7 +62,8 @@ class ParkingRecordReadServiceTest {
 		given(parkingRecordRepository.findByUserIdAndExitedAtIsNull(1L))
 				.willReturn(Optional.of(ParkingRecordFixture.activeRecord(1L, 7L)));
 		given(parkingLotReadService.getParkingLot(7L)).willReturn(
-				new ParkingLotResponse(7L, "여의도 공영주차장", 37.5, 126.9, true, null, 120, 10, 1000, 300));
+				ParkingLotResponse.from(ParkingLotFixture.parkingLotWithId(7L,
+						"서울 강남구 영동대로 513 지하", "최초 2시간 3,000원", false)));
 		given(savedPlaceReadService.getSavedPlaces(1L)).willReturn(places);
 
 		// when
@@ -67,6 +71,8 @@ class ParkingRecordReadServiceTest {
 
 		// then
 		assertThat(summary.parkingLotName()).isEqualTo("여의도 공영주차장");
+		assertThat(summary.parkingLotAddress()).isEqualTo("서울 강남구 영동대로 513 지하");
+		assertThat(summary.feeDescription()).isEqualTo("최초 2시간 3,000원");
 		assertThat(summary.elapsedMinutes()).isEqualTo(100);
 		assertThat(summary.freeMinutes()).isEqualTo(120);
 		assertThat(summary.remainingFreeMinutes()).isEqualTo(20);
@@ -76,17 +82,46 @@ class ParkingRecordReadServiceTest {
 	@Test
 	@DisplayName("주차장을 모르면 무료 시간 정보 없이 경과 시간만 준다")
 	void getSummaryWithoutLot() {
+		// given
 		given(parkingRecordRepository.findByUserIdAndExitedAtIsNull(1L))
 				.willReturn(Optional.of(ParkingRecordFixture.activeRecord(1L)));
 		given(savedPlaceReadService.getSavedPlaces(1L)).willReturn(places);
 
+		// when
 		ParkingSummaryResponse summary = parkingRecordReadService.getSummary(1L);
 
+		// then
 		assertThat(summary.parkingLotName()).isNull();
+		assertThat(summary.parkingLotAddress()).isNull();
+		assertThat(summary.feeDescription()).isNull();
 		assertThat(summary.freeMinutes()).isNull();
 		assertThat(summary.remainingFreeMinutes()).isNull();
 		assertThat(summary.elapsedMinutes()).isEqualTo(100);
 		verifyNoInteractions(parkingLotReadService);
+	}
+
+	@ParameterizedTest
+	@CsvSource(value = {"NULL, NULL", "서울 강남구 영동대로 513 지하, NULL", "NULL, 주말 무료"}, nullValues = "NULL")
+	@DisplayName("주차장 주소나 요금 문구가 없으면 요약에서도 해당 필드는 null을 유지한다")
+	void getSummaryWithOptionalLotFields(String address, String feeDescription) {
+		// given
+		given(parkingRecordRepository.findByUserIdAndExitedAtIsNull(1L))
+				.willReturn(Optional.of(ParkingRecordFixture.activeRecord(1L, 7L)));
+		given(parkingLotReadService.getParkingLot(7L)).willReturn(
+				ParkingLotResponse.from(ParkingLotFixture.parkingLotWithId(7L, address, feeDescription, false)));
+		given(savedPlaceReadService.getSavedPlaces(1L)).willReturn(places);
+
+		// when
+		ParkingSummaryResponse summary = parkingRecordReadService.getSummary(1L);
+
+		// then
+		assertThat(summary.parkingLotName()).isEqualTo("여의도 공영주차장");
+		assertThat(summary.parkingLotAddress()).isEqualTo(address);
+		assertThat(summary.feeDescription()).isEqualTo(feeDescription);
+		assertThat(summary.elapsedMinutes()).isEqualTo(100);
+		assertThat(summary.freeMinutes()).isEqualTo(120);
+		assertThat(summary.remainingFreeMinutes()).isEqualTo(20);
+		assertThat(summary.quickDestinations()).isEqualTo(places);
 	}
 
 	@Test

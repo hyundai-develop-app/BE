@@ -14,7 +14,7 @@ public record ParkRequest(
 		@Schema(description = "주차 위치 경도", example = "127.2236", minimum = "-180", maximum = "180",
 				requiredMode = Schema.RequiredMode.REQUIRED)
 		@NotNull @DecimalMin("-180") @DecimalMax("180") Double longitude,
-		@Schema(description = "주차장 ID. 확인된 경우에만 보낸다. 없는 ID면 404 PARKINGLOT4041", example = "1",
+		@Schema(description = "주차장 ID. 확인된 경우에만 보낸다. 없는 ID면 404 PARKINGLOT4041. 보내지 않으면 주차 위치 300m 안 가장 가까운 주차장으로 기록한다", example = "1",
 				nullable = true)
 		Long parkingLotId
 ) {

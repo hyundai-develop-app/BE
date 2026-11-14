@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -64,6 +65,13 @@ public class ArrivalController implements ArrivalControllerDocs {
 			@PathVariable Long sessionId, @Valid @RequestBody SelectWaypointRequest request) {
 		return ResponseEntity.ok(ApiResponse.ok(
 				arrivalWriteService.selectWaypoint(userId, sessionId, request.parkingLotId())));
+	}
+
+	@Override
+	@DeleteMapping("/{sessionId}/waypoint")
+	public ResponseEntity<ApiResponse<ArrivalSessionResponse>> clearWaypoint(@CurrentUserId Long userId,
+			@PathVariable Long sessionId) {
+		return ResponseEntity.ok(ApiResponse.ok(arrivalWriteService.clearWaypoint(userId, sessionId)));
 	}
 
 	@Override

@@ -2,10 +2,12 @@ package com.hmc.hmcbe.arrival.controller;
 
 import static com.hmc.hmcbe.global.auth.AuthFixture.USER_ID;
 import static com.hmc.hmcbe.global.auth.AuthFixture.authenticated;
+import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -173,7 +175,74 @@ class ArrivalControllerTest {
 	}
 
 	private static NearbyParkingLotResponse nearby(Long id, int distance, int rate, String level) {
-		ParkingLotResponse lot = new ParkingLotResponse(id, "주차장" + id, 37.5, 126.9, true, null, 120, 10, 1000, 100);
+		ParkingLotResponse lot = new ParkingLotResponse(id, "주차장" + id, 37.5, 126.9, true, null, 120, 10, 1000, 100, null, null, false);
 		return new NearbyParkingLotResponse(lot, distance, new OccupancyForecastResponse(ETA, rate, level));
+	}
+
+	@Test
+	@DisplayName("경유지 해제를 요청하면 200으로 경유지가 null인 세션을 반환한다")
+	void clearWaypoint() throws Exception {
+		// given
+		given(arrivalWriteService.clearWaypoint(USER_ID, 5L)).willReturn(SESSION);
+
+		// when & then
+		mockMvc.perform(delete("/api/v1/arrivals/5/waypoint").with(authenticated()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.success").value(true))
+				.andExpect(jsonPath("$.error").value(nullValue()))
+				.andExpect(jsonPath("$.data.id").value(5))
+				.andExpect(jsonPath("$.data.waypointParkingLotId").value(nullValue()))
+				.andExpect(jsonPath("$.data.destinationParkingLotId").value(7))
+				.andExpect(jsonPath("$.data.status").value("ACTIVE"));
+		verify(arrivalWriteService).clearWaypoint(USER_ID, 5L);
+	}
+
+	@Test
+	@DisplayName("남의 세션이거나 없는 세션의 경유지 해제를 요청하면 404 ARRIVAL4041을 반환한다")
+	void clearWaypointNotFound() throws Exception {
+		// given
+		given(arrivalWriteService.clearWaypoint(USER_ID, 5L))
+				.willThrow(new BusinessException(ArrivalErrorCode.ARRIVAL_SESSION_NOT_FOUND));
+
+		// when & then
+		mockMvc.perform(delete("/api/v1/arrivals/5/waypoint").with(authenticated()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("ARRIVAL4041"));
+		verify(arrivalWriteService).clearWaypoint(USER_ID, 5L);
+	}
+
+	@Test
+	@DisplayName("종료한 세션의 경유지 해제를 요청하면 409 ARRIVAL4091을 반환한다")
+	void clearWaypointAlreadyEnded() throws Exception {
+		// given
+		given(arrivalWriteService.clearWaypoint(USER_ID, 5L))
+				.willThrow(new BusinessException(ArrivalErrorCode.ALREADY_ENDED));
+
+		// when & then
+		mockMvc.perform(delete("/api/v1/arrivals/5/waypoint").with(authenticated()))
+				.andExpect(status().isConflict())
+				.andExpect(jsonPath("$.success").value(false))
+				.andExpect(jsonPath("$.error.code").value("ARRIVAL4091"));
+		verify(arrivalWriteService).clearWaypoint(USER_ID, 5L);
+	}
+
+	@Test
+	@DisplayName("목적지 주차장 ID를 생략하여 시작하면 추정된 ID가 담긴 201 응답을 반환한다")
+	void startWithoutDestinationParkingLotId() throws Exception {
+		// given
+		StartArrivalRequest request = new StartArrivalRequest("더현대 서울", 37.5259, 126.9284, null, ETA);
+		given(arrivalWriteService.start(USER_ID, request)).willReturn(SESSION);
+
+		// when & then
+		mockMvc.perform(post("/api/v1/arrivals").with(authenticated())
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("""
+								{"destinationName":"더현대 서울","latitude":37.5259,"longitude":126.9284,
+								"expectedArrivalAt":"2026-11-09T05:18:00Z"}
+								"""))
+				.andExpect(status().isCreated())
+				.andExpect(jsonPath("$.data.destinationParkingLotId").value(7));
+		verify(arrivalWriteService).start(USER_ID, request);
 	}
 }

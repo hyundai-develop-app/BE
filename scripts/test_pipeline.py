@@ -24,7 +24,7 @@ class PipelineTest(unittest.TestCase):
         shutil.copytree(SOURCE / '.claude', self.root / '.claude')
         (self.root / '.gitignore').write_text('.work/\n')
         (self.root / 'docs/tasks').mkdir(parents=True)
-        for task in ('user', 'chat', 'overlap'):
+        for task in ('user', 'chat', 'overlap', 'user-v2'):
             (self.root / f'docs/tasks/{task}.md').write_text(task)
         (self.root / 'src/main').mkdir(parents=True)
         (self.root / 'src/test').mkdir()
@@ -198,6 +198,17 @@ pathlib.Path(sys.argv[sys.argv.index('-o') + 1]).write_text('writer result')
             fcntl.flock(handle, fcntl.LOCK_EX)
             result = self.call('recover', 'user', '--worker-stopped', ok=False)
             self.assertIn('다른 관리자', result.stderr)
+
+    def test_superseded_task_releases_write_paths(self):
+        self.ready()
+        work = self.base / 'user-v2'
+        self.git(self.root, 'worktree', 'add', '-qb', 'user-v2', str(work), 'HEAD')
+        self.call('register', 'user-v2', '--workspace', str(work), '--write-path', 'src/main/user', ok=False)
+        self.call('supersede', 'user', '--by', 'user-v2', '--reason', 'test assertion was wrong')
+        self.assertEqual(self.state()['status'], 'superseded')
+        self.assertEqual(self.state()['superseded_by'], 'user-v2')
+        self.call('run-writer', 'user', ok=False)
+        self.call('register', 'user-v2', '--workspace', str(work), '--write-path', 'src/main/user')
 
     def test_verifier_boundary_and_rename(self):
         work = self.register()

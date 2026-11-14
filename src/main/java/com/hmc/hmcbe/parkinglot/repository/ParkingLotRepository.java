@@ -29,11 +29,13 @@ public interface ParkingLotRepository extends JpaRepository<ParkingLot, Long> {
 			WHERE ST_DWithin(p.location::geography,
 							ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
 							:radiusMeters)
+				AND (:includeWeekendOnly OR p.weekend_only = FALSE)
 			ORDER BY distanceMeters
 			LIMIT :limit
 			""", nativeQuery = true)
 	List<NearbyParkingLotProjection> findNearby(@Param("latitude") double latitude,
 			@Param("longitude") double longitude,
 			@Param("radiusMeters") double radiusMeters,
-			@Param("limit") int limit);
+			@Param("limit") int limit,
+			@Param("includeWeekendOnly") boolean includeWeekendOnly);
 }
